@@ -170,8 +170,7 @@ class RandomWalk(Node):
             )
 
             # Calculate degrees and ensure it's in the range [0, 360)
-            abs(math.degrees(delta_orientation) % 360)
-
+            degreesTurned = abs(math.degrees(delta_orientation) % 360)
             
             DEGREES = DEGREES + degreesTurned
             self.start_orientation = current_orientation
