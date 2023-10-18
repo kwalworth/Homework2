@@ -407,7 +407,7 @@ class RandomWalk(Node):
                 if ANGULAR_VELOCITY < 0.1:
                     ANGULAR_VELOCITY = 0.1
             elif(ANGULAR_VELOCITY < target_angular_velocity):
-                ANGULAR_VELOCITY = ANGULAR_VELOCITY * 2
+                ANGULAR_VELOCITY = ANGULAR_VELOCITY * 1.25
                 if (ANGULAR_VELOCITY > target_angular_velocity):
                     ANGULAR_VELOCITY = target_angular_velocity
 
