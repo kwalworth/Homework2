@@ -25,7 +25,7 @@ LEFT_FRONT_INDEX=150
 LEFT_SIDE_INDEX=90
 
 #These are all variables I created. Not all of them are in use now, but they were at some point
-LINEAR_VEL = 0.01
+LINEAR_VELOCITY = 0.01
 ANGULAR_VELOCITY = 0.01
 DISTANCE = 0
 DISTANCE_OBJECTIVE = 0
@@ -108,7 +108,7 @@ class RandomWalk(Node):
         global LAST_POS_X
         global LAST_POS_Y
         global ANGULAR_VELOCITY
-        global LINEAR_VEL
+        global LINEAR_VELOCITY
         
         #self.get_logger().info('DISTANCE: %s, DISTANCE_OBJECTIVE: %s' % (DISTANCE, DISTANCE_OBJECTIVE))
         
