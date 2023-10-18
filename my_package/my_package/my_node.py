@@ -110,16 +110,25 @@ class RandomWalk(Node):
         
         if DISTANCE_OBJECTIVE > 0:
             if DISTANCE >= DISTANCE_OBJECTIVE:
+                self.cmd.linear.x = 0.0
+                self.cmd.angular.z = 0.0 
+                self.publisher_.publish(self.cmd)
                 self.get_logger().info('Distance: %s meter(s)' % DISTANCE)
                 DISTANCE_OBJECTIVE = 0
                 DISTANCE = 0
         if DEGREES_OBJECTIVE > 0:
             if DEGREES >= DEGREES_OBJECTIVE:
+                self.cmd.linear.x = 0.0
+                self.cmd.angular.z = 0.0 
+                self.publisher_.publish(self.cmd)
                 self.get_logger().info('Degrees: %s degrees' % DEGREES)
                 DEGREES_OBJECTIVE = 0
                 DEGREES = 0
                 
         if DISTANCE_OBJECTIVE == 0 and DEGREES_OBJECTIVE == 0:
+            LAST_POS_X = self.pose_saved['position'][0]
+            LAST_POS_Y = self.pose_saved['position'][1]
+            self.start_orientation = self.pose_saved['orientation']
             USER_INTEGER = 100
             USER_INTEGER = int(input("Enter an integer: "))
                 
@@ -127,7 +136,7 @@ class RandomWalk(Node):
         #1 meter - 0.3 m/s
         if USER_INTEGER == 0:
             DISTANCE_OBJECTIVE = 1
-            self.cmd.linear.x = (0.3/9.09090909)
+            self.cmd.linear.x = 0.3
             self.cmd.angular.z = 0.0 
             self.publisher_.publish(self.cmd)
             DISTANCE = DISTANCE + math.sqrt(pow((self.pose_saved['position'][0] - LAST_POS_X), 2) + pow((self.pose_saved['position'][1] - LAST_POS_Y),2))
@@ -148,48 +157,27 @@ class RandomWalk(Node):
         elif USER_INTEGER == 2:
             DEGREES_OBJECTIVE = 10
             #ChatGPT - Start
-            if self.start_orientation is None:
-                 self.start_orientation = self.pose_saved['orientation']
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = 0.3 
-            self.publisher_.publish(self.cmd)
-            current_orientation = self.pose_saved['orientation']
-            delta_orientation = math.atan2(
-                2.0 * (current_orientation[3] * current_orientation[2] + current_orientation[0] * current_orientation[1]),
-                1.0 - 2.0 * (current_orientation[1]**2 + current_orientation[2]**2)
-            )
-
-            DEGREES = math.degrees(delta_orientation)
-            self.get_logger().info('Degrees: %s' % DEGREES)
-
-            if DEGREES >= DEGREES_OBJECTIVE:
-                self.get_logger().info('Degrees: %s degrees' % DEGREES)
-                DEGREES_OBJECTIVE = 0
-                DEGREES = 0
-                self.start_orientation = None
-            #ChatGPT - End
-        #180 degrees - 30 degree/s
-        elif USER_INTEGER == 3:
-            DEGREES_OBJECTIVE = 180
-            #Chat GPT - start
-            if self.start_orientation is None:
-                self.start_orientation = self.pose_saved['orientation']
-                
-            self.cmd.linear.x = 0.0
-            self.cmd.angular.z = 3.0 
+            self.cmd.angular.z = 0.22
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
                 2.0 * (current_orientation[3] * current_orientation[2] + current_orientation[0] * current_orientation[1]),
                 1.0 - 2.0 * (current_orientation[1] ** 2 + current_orientation[2] ** 2)
+            ) - math.atan2(
+                2.0 * (self.start_orientation[3] * self.start_orientation[2] + self.start_orientation[0] * self.start_orientation[1]),
+                1.0 - 2.0 * (self.start_orientation[1] ** 2 + self.start_orientation[2] ** 2)
             )
 
             # Calculate degrees and ensure it's in the range [0, 360)
-            DEGREES = math.degrees(delta_orientation) % 360
+            degreesTurned = math.degrees(delta_orientation) % 360
 
             # Adjust negative degrees to be positive
-            if DEGREES < 0:
-                DEGREES += 360
+            if degreesTurned < 0:
+                degreesTurned += 360
+            
+            DEGREES = DEGREES + degreesTurned
+            self.start_orientation = current_orientation
 
             self.get_logger().info('Degrees: %s' % DEGREES)
 
@@ -197,31 +185,72 @@ class RandomWalk(Node):
                 self.get_logger().info('Degrees: %s degrees' % DEGREES)
                 DEGREES_OBJECTIVE = 0
                 DEGREES = 0
-                self.start_orientation = None
+            #ChatGPT - End
+        #180 degrees - 30 degree/s
+        elif USER_INTEGER == 3:
+            DEGREES_OBJECTIVE = 180
+            #Chat GPT - start                
+            self.cmd.linear.x = 0.0
+            self.cmd.angular.z = 0.22
+            self.publisher_.publish(self.cmd)
+            current_orientation = self.pose_saved['orientation']
+            delta_orientation = math.atan2(
+                2.0 * (current_orientation[3] * current_orientation[2] + current_orientation[0] * current_orientation[1]),
+                1.0 - 2.0 * (current_orientation[1] ** 2 + current_orientation[2] ** 2)
+            ) - math.atan2(
+                2.0 * (self.start_orientation[3] * self.start_orientation[2] + self.start_orientation[0] * self.start_orientation[1]),
+                1.0 - 2.0 * (self.start_orientation[1] ** 2 + self.start_orientation[2] ** 2)
+            )
+
+            # Calculate degrees and ensure it's in the range [0, 360)
+            degreesTurned = math.degrees(delta_orientation) % 360
+
+            # Adjust negative degrees to be positive
+            if degreesTurned < 0:
+                degreesTurned += 360
+            
+            DEGREES = DEGREES + degreesTurned
+            self.start_orientation = current_orientation
+
+            self.get_logger().info('Degrees: %s' % DEGREES)
+
+            if DEGREES >= DEGREES_OBJECTIVE:
+                self.get_logger().info('Degrees: %s degrees' % DEGREES)
+                DEGREES_OBJECTIVE = 0
+                DEGREES = 0
             #ChatGPT - End
         #360 degrees - 30 degree/s
         elif USER_INTEGER == 4:
             DEGREES_OBJECTIVE = 360
             #ChatGPT - Start
-            if self.start_orientation is None:
-                 self.start_orientation = self.pose_saved['orientation']
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = 0.3 
+            self.cmd.angular.z = 0.22
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
                 2.0 * (current_orientation[3] * current_orientation[2] + current_orientation[0] * current_orientation[1]),
-                1.0 - 2.0 * (current_orientation[1]**2 + current_orientation[2]**2)
+                1.0 - 2.0 * (current_orientation[1] ** 2 + current_orientation[2] ** 2)
+            ) - math.atan2(
+                2.0 * (self.start_orientation[3] * self.start_orientation[2] + self.start_orientation[0] * self.start_orientation[1]),
+                1.0 - 2.0 * (self.start_orientation[1] ** 2 + self.start_orientation[2] ** 2)
             )
 
-            DEGREES = math.degrees(delta_orientation)
+            # Calculate degrees and ensure it's in the range [0, 360)
+            degreesTurned = math.degrees(delta_orientation) % 360
+
+            # Adjust negative degrees to be positive
+            if degreesTurned < 0:
+                degreesTurned += 360
+            
+            DEGREES = DEGREES + degreesTurned
+            self.start_orientation = current_orientation
+
             self.get_logger().info('Degrees: %s' % DEGREES)
 
             if DEGREES >= DEGREES_OBJECTIVE:
                 self.get_logger().info('Degrees: %s degrees' % DEGREES)
                 DEGREES_OBJECTIVE = 0
                 DEGREES = 0
-                self.start_orientation = None
             #ChatGPT - End
         #1 meter - 0.08 m/s
         elif USER_INTEGER == 5:
@@ -247,73 +276,100 @@ class RandomWalk(Node):
         elif USER_INTEGER == 7:
             DEGREES_OBJECTIVE = 10
             #ChatGPT - Start
-            if self.start_orientation is None:
-                 self.start_orientation = self.pose_saved['orientation']
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = 0.3 
+            self.cmd.angular.z = 0.22
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
                 2.0 * (current_orientation[3] * current_orientation[2] + current_orientation[0] * current_orientation[1]),
-                1.0 - 2.0 * (current_orientation[1]**2 + current_orientation[2]**2)
+                1.0 - 2.0 * (current_orientation[1] ** 2 + current_orientation[2] ** 2)
+            ) - math.atan2(
+                2.0 * (self.start_orientation[3] * self.start_orientation[2] + self.start_orientation[0] * self.start_orientation[1]),
+                1.0 - 2.0 * (self.start_orientation[1] ** 2 + self.start_orientation[2] ** 2)
             )
 
-            DEGREES = math.degrees(delta_orientation)
+            # Calculate degrees and ensure it's in the range [0, 360)
+            degreesTurned = math.degrees(delta_orientation) % 360
+
+            # Adjust negative degrees to be positive
+            if degreesTurned < 0:
+                degreesTurned += 360
+            
+            DEGREES = DEGREES + degreesTurned
+            self.start_orientation = current_orientation
+
             self.get_logger().info('Degrees: %s' % DEGREES)
 
             if DEGREES >= DEGREES_OBJECTIVE:
                 self.get_logger().info('Degrees: %s degrees' % DEGREES)
                 DEGREES_OBJECTIVE = 0
                 DEGREES = 0
-                self.start_orientation = None
             #ChatGPT - End
         #180 degrees - 120 degree/s
         elif USER_INTEGER == 8:
             DEGREES_OBJECTIVE = 180
             #ChatGPT - Start
-            if self.start_orientation is None:
-                 self.start_orientation = self.pose_saved['orientation']
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = 0.3 
+            self.cmd.angular.z = 0.22
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
                 2.0 * (current_orientation[3] * current_orientation[2] + current_orientation[0] * current_orientation[1]),
-                1.0 - 2.0 * (current_orientation[1]**2 + current_orientation[2]**2)
+                1.0 - 2.0 * (current_orientation[1] ** 2 + current_orientation[2] ** 2)
+            ) - math.atan2(
+                2.0 * (self.start_orientation[3] * self.start_orientation[2] + self.start_orientation[0] * self.start_orientation[1]),
+                1.0 - 2.0 * (self.start_orientation[1] ** 2 + self.start_orientation[2] ** 2)
             )
 
-            DEGREES = math.degrees(delta_orientation)
+            # Calculate degrees and ensure it's in the range [0, 360)
+            degreesTurned = math.degrees(delta_orientation) % 360
+
+            # Adjust negative degrees to be positive
+            if degreesTurned < 0:
+                degreesTurned += 360
+            
+            DEGREES = DEGREES + degreesTurned
+            self.start_orientation = current_orientation
+
             self.get_logger().info('Degrees: %s' % DEGREES)
 
             if DEGREES >= DEGREES_OBJECTIVE:
                 self.get_logger().info('Degrees: %s degrees' % DEGREES)
                 DEGREES_OBJECTIVE = 0
                 DEGREES = 0
-                self.start_orientation = None
             #ChatGPT - End
         #360 degrees - 120 degree/s
         elif USER_INTEGER == 9:
             DEGREES_OBJECTIVE = 360
             #ChatGPT - Start
-            if self.start_orientation is None:
-                 self.start_orientation = self.pose_saved['orientation']
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = 0.3 
+            self.cmd.angular.z = 0.22
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
                 2.0 * (current_orientation[3] * current_orientation[2] + current_orientation[0] * current_orientation[1]),
-                1.0 - 2.0 * (current_orientation[1]**2 + current_orientation[2]**2)
+                1.0 - 2.0 * (current_orientation[1] ** 2 + current_orientation[2] ** 2)
+            ) - math.atan2(
+                2.0 * (self.start_orientation[3] * self.start_orientation[2] + self.start_orientation[0] * self.start_orientation[1]),
+                1.0 - 2.0 * (self.start_orientation[1] ** 2 + self.start_orientation[2] ** 2)
             )
 
-            DEGREES = math.degrees(delta_orientation)
+            # Calculate degrees and ensure it's in the range [0, 360)
+            degreesTurned = math.degrees(delta_orientation) % 360
+
+            # Adjust negative degrees to be positive
+            if degreesTurned < 0:
+                degreesTurned += 360
+            
+            DEGREES = DEGREES + degreesTurned
+            self.start_orientation = current_orientation
+
             self.get_logger().info('Degrees: %s' % DEGREES)
 
             if DEGREES >= DEGREES_OBJECTIVE:
                 self.get_logger().info('Degrees: %s degrees' % DEGREES)
                 DEGREES_OBJECTIVE = 0
                 DEGREES = 0
-                self.start_orientation = None
             #ChatGPT - End
             
 
