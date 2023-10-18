@@ -158,7 +158,7 @@ class RandomWalk(Node):
             DEGREES_OBJECTIVE = 10
             #ChatGPT - Start
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = 0.22
+            self.cmd.angular.z = 0.055
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
@@ -191,7 +191,7 @@ class RandomWalk(Node):
             DEGREES_OBJECTIVE = 180
             #Chat GPT - start                
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = 0.22
+            self.cmd.angular.z = 0.055
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
@@ -224,7 +224,7 @@ class RandomWalk(Node):
             DEGREES_OBJECTIVE = 360
             #ChatGPT - Start
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = 0.22
+            self.cmd.angular.z = 0.055
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
