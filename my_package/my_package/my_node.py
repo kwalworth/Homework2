@@ -403,7 +403,7 @@ class RandomWalk(Node):
             DEGREES_OBJECTIVE = 180
             
             if((DEGREES_OBJECTIVE - DEGREES) < DEGREES_OBJECTIVE/1.5):
-                ANGULAR_VELOCITY = ANGULAR_VELOCITY/6
+                ANGULAR_VELOCITY = ANGULAR_VELOCITY/3
                 if ANGULAR_VELOCITY < 0.01:
                     ANGULAR_VELOCITY = 0.01
             elif(ANGULAR_VELOCITY < target_angular_velocity):
