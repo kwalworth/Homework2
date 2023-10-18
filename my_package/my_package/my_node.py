@@ -136,7 +136,7 @@ class RandomWalk(Node):
         #1 meter - 0.3 m/s
         if USER_INTEGER == 0:
             DISTANCE_OBJECTIVE = 1
-            self.cmd.linear.x = 0.22
+            self.cmd.linear.x = 0.21
             self.cmd.angular.z = 0.0 
             self.publisher_.publish(self.cmd)
             DISTANCE = DISTANCE + math.sqrt(pow((self.pose_saved['position'][0] - LAST_POS_X), 2) + pow((self.pose_saved['position'][1] - LAST_POS_Y),2))
@@ -146,7 +146,7 @@ class RandomWalk(Node):
         #5 meters - 0.3 m/s
         elif USER_INTEGER == 1:
             DISTANCE_OBJECTIVE = 5
-            self.cmd.linear.x = 0.22
+            self.cmd.linear.x = 0.21
             self.cmd.angular.z = 0.0 
             self.publisher_.publish(self.cmd)
             DISTANCE = DISTANCE + math.sqrt(pow((self.pose_saved['position'][0] - LAST_POS_X), 2) + pow((self.pose_saved['position'][1] - LAST_POS_Y),2))
@@ -277,7 +277,7 @@ class RandomWalk(Node):
             DEGREES_OBJECTIVE = 10
             #ChatGPT - Start
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = 0.22
+            self.cmd.angular.z = 0.21
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
@@ -310,7 +310,7 @@ class RandomWalk(Node):
             DEGREES_OBJECTIVE = 180
             #ChatGPT - Start
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = 0.22
+            self.cmd.angular.z = 0.21
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
@@ -343,7 +343,7 @@ class RandomWalk(Node):
             DEGREES_OBJECTIVE = 360
             #ChatGPT - Start
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = 0.22
+            self.cmd.angular.z = 0.21
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
