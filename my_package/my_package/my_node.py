@@ -179,8 +179,12 @@ class RandomWalk(Node):
 
             if DEGREES >= DEGREES_OBJECTIVE:
                 self.get_logger().info('Degrees: %s degrees' % DEGREES)
+                self.get_logger().info('HELLLLLLLLLLOOOOOOOOOOOOOOO')
                 DEGREES_OBJECTIVE = 0
                 DEGREES = 0
+                self.cmd.linear.x = 0.0
+                self.cmd.angular.z = 0.0
+                self.publisher_.publish(self.cmd)
             #ChatGPT - End
         #180 degrees - 30 degree/s
         elif USER_INTEGER == 3:
