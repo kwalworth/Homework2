@@ -165,7 +165,7 @@ class RandomWalk(Node):
             target_velocity = 0.21
             DISTANCE_OBJECTIVE = 5
             
-            if((DISTANCE_OBJECTIVE - DISTANCE) < DISTANCE_OBJECTIVE/4):
+            if((DISTANCE_OBJECTIVE - DISTANCE) < 0.2):
                 LINEAR_VELOCITY = LINEAR_VELOCITY/4
                 if LINEAR_VELOCITY < 0.01:
                     LINEAR_VELOCITY = 0.01
@@ -338,7 +338,7 @@ class RandomWalk(Node):
             target_velocity = 0.08
             DISTANCE_OBJECTIVE = 5
             
-            if((DISTANCE_OBJECTIVE - DISTANCE) < DISTANCE_OBJECTIVE/4):
+            if((DISTANCE_OBJECTIVE - DISTANCE) < 0.2):
                 LINEAR_VELOCITY = LINEAR_VELOCITY/4
                 if LINEAR_VELOCITY < 0.01:
                     LINEAR_VELOCITY = 0.01
