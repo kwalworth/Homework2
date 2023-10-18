@@ -25,6 +25,7 @@ LEFT_FRONT_INDEX=150
 LEFT_SIDE_INDEX=90
 
 #These are all variables I created. Not all of them are in use now, but they were at some point
+ANGULAR_VELOCITY = 0.01
 DISTANCE = 0
 DISTANCE_OBJECTIVE = 0
 DEGREES = 0
@@ -105,6 +106,7 @@ class RandomWalk(Node):
         global USER_INTEGER
         global LAST_POS_X
         global LAST_POS_Y
+        global ANGULAR_VELOCITY
         
         #self.get_logger().info('DISTANCE: %s, DISTANCE_OBJECTIVE: %s' % (DISTANCE, DISTANCE_OBJECTIVE))
         
@@ -124,6 +126,7 @@ class RandomWalk(Node):
                 self.get_logger().info('Degrees: %s degrees' % DEGREES)
                 DEGREES_OBJECTIVE = 0
                 DEGREES = 0
+                ANGULAR_VELOCITY = 0.01
                 
         if DISTANCE_OBJECTIVE == 0 and DEGREES_OBJECTIVE == 0:
             LAST_POS_X = self.pose_saved['position'][0]
@@ -155,10 +158,21 @@ class RandomWalk(Node):
             self.get_logger().info('Distance: %s' % DISTANCE)
         #10 degrees - 30 degree/s
         elif USER_INTEGER == 2:
+            target_angular_velocity = math.radians(30)
             DEGREES_OBJECTIVE = 10
+            
+            if((DEGREES_OBJECTIVE - DEGREES) < DEGREES_OBJECTIVE/2):
+                ANGULAR_VELOCITY = ANGULAR_VELOCITY/2
+                if ANGULAR_VELOCITY < 0.01:
+                    ANGULAR_VELOCITY = 0.01
+            elif(ANGULAR_VELOCITY < target_angular_velocity):
+                ANGULAR_VELOCITY = ANGULAR_VELOCITY * 1.2
+                if (ANGULAR_VELOCITY > target_angular_velocity):
+                    ANGULAR_VELOCITY = target_angular_velocity
+
             #ChatGPT - Start
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = math.radians(30)
+            self.cmd.angular.z = ANGULAR_VELOCITY
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
@@ -179,19 +193,30 @@ class RandomWalk(Node):
 
             if DEGREES >= DEGREES_OBJECTIVE:
                 self.get_logger().info('Degrees: %s degrees' % DEGREES)
-                self.get_logger().info('HELLLLLLLLLLOOOOOOOOOOOOOOO')
                 DEGREES_OBJECTIVE = 0
                 DEGREES = 0
+                ANGULAR_VELOCITY = 0.01
                 self.cmd.linear.x = 0.0
                 self.cmd.angular.z = 0.0
                 self.publisher_.publish(self.cmd)
             #ChatGPT - End
         #180 degrees - 30 degree/s
         elif USER_INTEGER == 3:
+            target_angular_velocity = math.radians(30)
             DEGREES_OBJECTIVE = 180
-            #Chat GPT - start                
+            
+            if((DEGREES_OBJECTIVE - DEGREES) < DEGREES_OBJECTIVE/10):
+                ANGULAR_VELOCITY = ANGULAR_VELOCITY/2
+                if ANGULAR_VELOCITY < 0.01:
+                    ANGULAR_VELOCITY = 0.01
+            elif(ANGULAR_VELOCITY < target_angular_velocity):
+                ANGULAR_VELOCITY = ANGULAR_VELOCITY * 2
+                if (ANGULAR_VELOCITY > target_angular_velocity):
+                    ANGULAR_VELOCITY = target_angular_velocity
+
+            #ChatGPT - Start
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = math.radians(30)
+            self.cmd.angular.z = ANGULAR_VELOCITY
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
@@ -204,7 +229,6 @@ class RandomWalk(Node):
 
             # Calculate degrees and ensure it's in the range [0, 360)
             degreesTurned = abs(math.degrees(delta_orientation) % 360)
-
             
             DEGREES = DEGREES + degreesTurned
             self.start_orientation = current_orientation
@@ -215,13 +239,27 @@ class RandomWalk(Node):
                 self.get_logger().info('Degrees: %s degrees' % DEGREES)
                 DEGREES_OBJECTIVE = 0
                 DEGREES = 0
-            #ChatGPT - End
+                ANGULAR_VELOCITY = 0.01
+                self.cmd.linear.x = 0.0
+                self.cmd.angular.z = 0.0
+                self.publisher_.publish(self.cmd)
         #360 degrees - 30 degree/s
         elif USER_INTEGER == 4:
+            target_angular_velocity = math.radians(30)
             DEGREES_OBJECTIVE = 360
+            
+            if((DEGREES_OBJECTIVE - DEGREES) < DEGREES_OBJECTIVE/10):
+                ANGULAR_VELOCITY = ANGULAR_VELOCITY/2
+                if ANGULAR_VELOCITY < 0.01:
+                    ANGULAR_VELOCITY = 0.01
+            elif(ANGULAR_VELOCITY < target_angular_velocity):
+                ANGULAR_VELOCITY = ANGULAR_VELOCITY * 2
+                if (ANGULAR_VELOCITY > target_angular_velocity):
+                    ANGULAR_VELOCITY = target_angular_velocity
+
             #ChatGPT - Start
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = math.radians(30)
+            self.cmd.angular.z = ANGULAR_VELOCITY
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
@@ -234,7 +272,7 @@ class RandomWalk(Node):
 
             # Calculate degrees and ensure it's in the range [0, 360)
             degreesTurned = abs(math.degrees(delta_orientation) % 360)
-
+            
             DEGREES = DEGREES + degreesTurned
             self.start_orientation = current_orientation
 
@@ -244,6 +282,10 @@ class RandomWalk(Node):
                 self.get_logger().info('Degrees: %s degrees' % DEGREES)
                 DEGREES_OBJECTIVE = 0
                 DEGREES = 0
+                ANGULAR_VELOCITY = 0.01
+                self.cmd.linear.x = 0.0
+                self.cmd.angular.z = 0.0
+                self.publisher_.publish(self.cmd)
             #ChatGPT - End
         #1 meter - 0.08 m/s
         elif USER_INTEGER == 5:
@@ -267,10 +309,21 @@ class RandomWalk(Node):
             self.get_logger().info('Distance: %s' % DISTANCE)
         #10 degrees - 120 degree/s
         elif USER_INTEGER == 7:
+            target_angular_velocity = math.radians(120)
             DEGREES_OBJECTIVE = 10
+            
+            if((DEGREES_OBJECTIVE - DEGREES) < DEGREES_OBJECTIVE/2):
+                ANGULAR_VELOCITY = ANGULAR_VELOCITY/4
+                if ANGULAR_VELOCITY < 0.01:
+                    ANGULAR_VELOCITY = 0.01
+            elif(ANGULAR_VELOCITY < target_angular_velocity):
+                ANGULAR_VELOCITY = ANGULAR_VELOCITY * 1.2
+                if (ANGULAR_VELOCITY > target_angular_velocity):
+                    ANGULAR_VELOCITY = target_angular_velocity
+
             #ChatGPT - Start
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = math.radians(120)
+            self.cmd.angular.z = ANGULAR_VELOCITY
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
@@ -293,13 +346,28 @@ class RandomWalk(Node):
                 self.get_logger().info('Degrees: %s degrees' % DEGREES)
                 DEGREES_OBJECTIVE = 0
                 DEGREES = 0
+                ANGULAR_VELOCITY = 0.01
+                self.cmd.linear.x = 0.0
+                self.cmd.angular.z = 0.0
+                self.publisher_.publish(self.cmd)
             #ChatGPT - End
         #180 degrees - 120 degree/s
         elif USER_INTEGER == 8:
+            target_angular_velocity = math.radians(120)
             DEGREES_OBJECTIVE = 180
+            
+            if((DEGREES_OBJECTIVE - DEGREES) < DEGREES_OBJECTIVE/2):
+                ANGULAR_VELOCITY = ANGULAR_VELOCITY/3
+                if ANGULAR_VELOCITY < 0.01:
+                    ANGULAR_VELOCITY = 0.01
+            elif(ANGULAR_VELOCITY < target_angular_velocity):
+                ANGULAR_VELOCITY = ANGULAR_VELOCITY * 2
+                if (ANGULAR_VELOCITY > target_angular_velocity):
+                    ANGULAR_VELOCITY = target_angular_velocity
+
             #ChatGPT - Start
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = math.radians(120)
+            self.cmd.angular.z = ANGULAR_VELOCITY
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
@@ -322,13 +390,28 @@ class RandomWalk(Node):
                 self.get_logger().info('Degrees: %s degrees' % DEGREES)
                 DEGREES_OBJECTIVE = 0
                 DEGREES = 0
+                ANGULAR_VELOCITY = 0.01
+                self.cmd.linear.x = 0.0
+                self.cmd.angular.z = 0.0
+                self.publisher_.publish(self.cmd)
             #ChatGPT - End
         #360 degrees - 120 degree/s
         elif USER_INTEGER == 9:
+            target_angular_velocity = math.radians(120)
             DEGREES_OBJECTIVE = 360
+            
+            if((DEGREES_OBJECTIVE - DEGREES) < DEGREES_OBJECTIVE/2):
+                ANGULAR_VELOCITY = ANGULAR_VELOCITY/3
+                if ANGULAR_VELOCITY < 0.01:
+                    ANGULAR_VELOCITY = 0.01
+            elif(ANGULAR_VELOCITY < target_angular_velocity):
+                ANGULAR_VELOCITY = ANGULAR_VELOCITY * 2
+                if (ANGULAR_VELOCITY > target_angular_velocity):
+                    ANGULAR_VELOCITY = target_angular_velocity
+
             #ChatGPT - Start
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = math.radians(120)
+            self.cmd.angular.z = ANGULAR_VELOCITY
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
@@ -351,6 +434,10 @@ class RandomWalk(Node):
                 self.get_logger().info('Degrees: %s degrees' % DEGREES)
                 DEGREES_OBJECTIVE = 0
                 DEGREES = 0
+                ANGULAR_VELOCITY = 0.01
+                self.cmd.linear.x = 0.0
+                self.cmd.angular.z = 0.0
+                self.publisher_.publish(self.cmd)
             #ChatGPT - End
             
 
