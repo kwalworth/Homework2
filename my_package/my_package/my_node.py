@@ -158,7 +158,7 @@ class RandomWalk(Node):
             DEGREES_OBJECTIVE = 10
             #ChatGPT - Start
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = 0.055
+            self.cmd.angular.z = math.radians(30)
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
@@ -170,11 +170,8 @@ class RandomWalk(Node):
             )
 
             # Calculate degrees and ensure it's in the range [0, 360)
-            degreesTurned = math.degrees(delta_orientation) % 360
+            abs(math.degrees(delta_orientation) % 360)
 
-            # Adjust negative degrees to be positive
-            if degreesTurned < 0:
-                degreesTurned += 360
             
             DEGREES = DEGREES + degreesTurned
             self.start_orientation = current_orientation
@@ -191,7 +188,7 @@ class RandomWalk(Node):
             DEGREES_OBJECTIVE = 180
             #Chat GPT - start                
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = 0.055
+            self.cmd.angular.z = math.radians(30)
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
@@ -203,11 +200,8 @@ class RandomWalk(Node):
             )
 
             # Calculate degrees and ensure it's in the range [0, 360)
-            degreesTurned = math.degrees(delta_orientation) % 360
+            degreesTurned = abs(math.degrees(delta_orientation) % 360)
 
-            # Adjust negative degrees to be positive
-            if degreesTurned < 0:
-                degreesTurned += 360
             
             DEGREES = DEGREES + degreesTurned
             self.start_orientation = current_orientation
@@ -224,7 +218,7 @@ class RandomWalk(Node):
             DEGREES_OBJECTIVE = 360
             #ChatGPT - Start
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = 0.055
+            self.cmd.angular.z = math.radians(30)
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
@@ -236,12 +230,8 @@ class RandomWalk(Node):
             )
 
             # Calculate degrees and ensure it's in the range [0, 360)
-            degreesTurned = math.degrees(delta_orientation) % 360
+            degreesTurned = abs(math.degrees(delta_orientation) % 360)
 
-            # Adjust negative degrees to be positive
-            if degreesTurned < 0:
-                degreesTurned += 360
-            
             DEGREES = DEGREES + degreesTurned
             self.start_orientation = current_orientation
 
@@ -277,7 +267,7 @@ class RandomWalk(Node):
             DEGREES_OBJECTIVE = 10
             #ChatGPT - Start
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = 0.21
+            self.cmd.angular.z = math.radians(120)
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
@@ -289,11 +279,7 @@ class RandomWalk(Node):
             )
 
             # Calculate degrees and ensure it's in the range [0, 360)
-            degreesTurned = math.degrees(delta_orientation) % 360
-
-            # Adjust negative degrees to be positive
-            if degreesTurned < 0:
-                degreesTurned += 360
+            degreesTurned = abs(math.degrees(delta_orientation) % 360)
             
             DEGREES = DEGREES + degreesTurned
             self.start_orientation = current_orientation
@@ -310,7 +296,7 @@ class RandomWalk(Node):
             DEGREES_OBJECTIVE = 180
             #ChatGPT - Start
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = 0.21
+            self.cmd.angular.z = math.radians(120)
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
@@ -322,11 +308,7 @@ class RandomWalk(Node):
             )
 
             # Calculate degrees and ensure it's in the range [0, 360)
-            degreesTurned = math.degrees(delta_orientation) % 360
-
-            # Adjust negative degrees to be positive
-            if degreesTurned < 0:
-                degreesTurned += 360
+            degreesTurned = abs(math.degrees(delta_orientation) % 360)
             
             DEGREES = DEGREES + degreesTurned
             self.start_orientation = current_orientation
@@ -343,7 +325,7 @@ class RandomWalk(Node):
             DEGREES_OBJECTIVE = 360
             #ChatGPT - Start
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = 0.21
+            self.cmd.angular.z = math.radians(120)
             self.publisher_.publish(self.cmd)
             current_orientation = self.pose_saved['orientation']
             delta_orientation = math.atan2(
@@ -355,11 +337,7 @@ class RandomWalk(Node):
             )
 
             # Calculate degrees and ensure it's in the range [0, 360)
-            degreesTurned = math.degrees(delta_orientation) % 360
-
-            # Adjust negative degrees to be positive
-            if degreesTurned < 0:
-                degreesTurned += 360
+            degreesTurned = abs(math.degrees(delta_orientation) % 360)
             
             DEGREES = DEGREES + degreesTurned
             self.start_orientation = current_orientation
