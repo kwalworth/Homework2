@@ -25,6 +25,7 @@ LEFT_FRONT_INDEX=150
 LEFT_SIDE_INDEX=90
 
 #These are all variables I created. Not all of them are in use now, but they were at some point
+LINEAR_VEL = 0.01
 ANGULAR_VELOCITY = 0.01
 DISTANCE = 0
 DISTANCE_OBJECTIVE = 0
@@ -107,6 +108,7 @@ class RandomWalk(Node):
         global LAST_POS_X
         global LAST_POS_Y
         global ANGULAR_VELOCITY
+        global LINEAR_VEL
         
         #self.get_logger().info('DISTANCE: %s, DISTANCE_OBJECTIVE: %s' % (DISTANCE, DISTANCE_OBJECTIVE))
         
@@ -118,6 +120,7 @@ class RandomWalk(Node):
                 self.get_logger().info('Distance: %s meter(s)' % DISTANCE)
                 DISTANCE_OBJECTIVE = 0
                 DISTANCE = 0
+                LINEAR_VELOCITY = 0.01
         if DEGREES_OBJECTIVE > 0:
             if DEGREES >= DEGREES_OBJECTIVE:
                 self.cmd.linear.x = 0.0
@@ -138,8 +141,19 @@ class RandomWalk(Node):
 
         #1 meter - 0.3 m/s
         if USER_INTEGER == 0:
+            target_velocity = 0.21
             DISTANCE_OBJECTIVE = 1
-            self.cmd.linear.x = 0.21
+            
+            if((DISTANCE_OBJECTIVE - DISTANCE) < DISTANCE_OBJECTIVE/4):
+                LINEAR_VELOCITY = LINEAR_VELOCITY/4
+                if LINEAR_VELOCITY < 0.01:
+                    LINEAR_VELOCITY = 0.01
+            elif(LINEAR_VELOCITY < target_velocity):
+                LINEAR_VELOCITY = LINEAR_VELOCITY * 2
+                if (LINEAR_VELOCITY > target_velocity):
+                    LINEAR_VELOCITY = target_velocity
+            
+            self.cmd.linear.x = LINEAR_VELOCITY
             self.cmd.angular.z = 0.0 
             self.publisher_.publish(self.cmd)
             DISTANCE = DISTANCE + math.sqrt(pow((self.pose_saved['position'][0] - LAST_POS_X), 2) + pow((self.pose_saved['position'][1] - LAST_POS_Y),2))
@@ -148,8 +162,19 @@ class RandomWalk(Node):
             self.get_logger().info('Distance: %s' % DISTANCE)
         #5 meters - 0.3 m/s
         elif USER_INTEGER == 1:
+            target_velocity = 0.21
             DISTANCE_OBJECTIVE = 5
-            self.cmd.linear.x = 0.21
+            
+            if((DISTANCE_OBJECTIVE - DISTANCE) < DISTANCE_OBJECTIVE/4):
+                LINEAR_VELOCITY = LINEAR_VELOCITY/4
+                if LINEAR_VELOCITY < 0.01:
+                    LINEAR_VELOCITY = 0.01
+            elif(LINEAR_VELOCITY < target_velocity):
+                LINEAR_VELOCITY = LINEAR_VELOCITY * 2
+                if (LINEAR_VELOCITY > target_velocity):
+                    LINEAR_VELOCITY = target_velocity
+            
+            self.cmd.linear.x = LINEAR_VELOCITY
             self.cmd.angular.z = 0.0 
             self.publisher_.publish(self.cmd)
             DISTANCE = DISTANCE + math.sqrt(pow((self.pose_saved['position'][0] - LAST_POS_X), 2) + pow((self.pose_saved['position'][1] - LAST_POS_Y),2))
@@ -289,8 +314,19 @@ class RandomWalk(Node):
             #ChatGPT - End
         #1 meter - 0.08 m/s
         elif USER_INTEGER == 5:
+            target_velocity = 0.08
             DISTANCE_OBJECTIVE = 1
-            self.cmd.linear.x = 0.08
+            
+            if((DISTANCE_OBJECTIVE - DISTANCE) < DISTANCE_OBJECTIVE/4):
+                LINEAR_VELOCITY = LINEAR_VELOCITY/4
+                if LINEAR_VELOCITY < 0.01:
+                    LINEAR_VELOCITY = 0.01
+            elif(LINEAR_VELOCITY < target_velocity):
+                LINEAR_VELOCITY = LINEAR_VELOCITY * 2
+                if (LINEAR_VELOCITY > target_velocity):
+                    LINEAR_VELOCITY = target_velocity
+            
+            self.cmd.linear.x = LINEAR_VELOCITY
             self.cmd.angular.z = 0.0 
             self.publisher_.publish(self.cmd)
             DISTANCE = DISTANCE + math.sqrt(pow((self.pose_saved['position'][0] - LAST_POS_X), 2) + pow((self.pose_saved['position'][1] - LAST_POS_Y),2))
@@ -299,9 +335,19 @@ class RandomWalk(Node):
             self.get_logger().info('Distance: %s' % DISTANCE)
         #5 meters - 0.08 m/s
         elif USER_INTEGER == 6:
+            target_velocity = 0.08
             DISTANCE_OBJECTIVE = 5
-            self.cmd.linear.x = 0.08
-            self.cmd.angular.z = 0.0 
+            
+            if((DISTANCE_OBJECTIVE - DISTANCE) < DISTANCE_OBJECTIVE/4):
+                LINEAR_VELOCITY = LINEAR_VELOCITY/4
+                if LINEAR_VELOCITY < 0.01:
+                    LINEAR_VELOCITY = 0.01
+            elif(LINEAR_VELOCITY < target_velocity):
+                LINEAR_VELOCITY = LINEAR_VELOCITY * 2
+                if (LINEAR_VELOCITY > target_velocity):
+                    LINEAR_VELOCITY = target_velocity
+            
+            self.cmd.linear.x = LINEAR_VELOCITY
             self.publisher_.publish(self.cmd)
             DISTANCE = DISTANCE + math.sqrt(pow((self.pose_saved['position'][0] - LAST_POS_X), 2) + pow((self.pose_saved['position'][1] - LAST_POS_Y),2))
             LAST_POS_X = self.pose_saved['position'][0]
