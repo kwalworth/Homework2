@@ -136,7 +136,7 @@ class RandomWalk(Node):
         #1 meter - 0.3 m/s
         if USER_INTEGER == 0:
             DISTANCE_OBJECTIVE = 1
-            self.cmd.linear.x = 0.3
+            self.cmd.linear.x = 0.22
             self.cmd.angular.z = 0.0 
             self.publisher_.publish(self.cmd)
             DISTANCE = DISTANCE + math.sqrt(pow((self.pose_saved['position'][0] - LAST_POS_X), 2) + pow((self.pose_saved['position'][1] - LAST_POS_Y),2))
@@ -146,7 +146,7 @@ class RandomWalk(Node):
         #5 meters - 0.3 m/s
         elif USER_INTEGER == 1:
             DISTANCE_OBJECTIVE = 5
-            self.cmd.linear.x = 0.3
+            self.cmd.linear.x = 0.22
             self.cmd.angular.z = 0.0 
             self.publisher_.publish(self.cmd)
             DISTANCE = DISTANCE + math.sqrt(pow((self.pose_saved['position'][0] - LAST_POS_X), 2) + pow((self.pose_saved['position'][1] - LAST_POS_Y),2))
