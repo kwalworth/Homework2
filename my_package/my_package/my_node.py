@@ -64,6 +64,7 @@ state_dict_ = {
 class RandomWalk(Node):
 
     def __init__(self):
+        self.get_logger().info('ARE WE EVEN GETTING HERE?!?!?!?!?!?!?!')
         super().__init__('random_walk_node')
         self.scan_cleaned = []
         self.stall = False
@@ -182,6 +183,9 @@ class RandomWalk(Node):
         global RIGHT
         #global LEFT
         global COUNT3
+
+        self.get_logger().info('timer_callback_Kaden2 Accessed')
+
         
         if(FOUND_WALL == True):
             wall_found = 'We found a wall'
