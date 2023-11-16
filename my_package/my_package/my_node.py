@@ -170,58 +170,6 @@ class RandomWalk(Node):
                 #writer.writerow([0, 1])
         
         return None
-   
-        
-    def timer_callback(self):
-        if (len(self.scan_cleaned)==0):
-    	    self.turtlebot_moving = False
-    	    return
-    	    
-        #left_lidar_samples = self.scan_cleaned[LEFT_SIDE_INDEX:LEFT_FRONT_INDEX]
-        #right_lidar_samples = self.scan_cleaned[RIGHT_FRONT_INDEX:RIGHT_SIDE_INDEX]
-        #front_lidar_samples = self.scan_cleaned[LEFT_FRONT_INDEX:RIGHT_FRONT_INDEX]
-        
-        left_lidar_min = min(self.scan_cleaned[LEFT_SIDE_INDEX:LEFT_FRONT_INDEX])
-        right_lidar_min = min(self.scan_cleaned[RIGHT_FRONT_INDEX:RIGHT_SIDE_INDEX])
-        front_lidar_min = min(self.scan_cleaned[LEFT_FRONT_INDEX:RIGHT_FRONT_INDEX])
-
-        #self.get_logger().info('left scan slice: "%s"'%  min(left_lidar_samples))
-        #self.get_logger().info('front scan slice: "%s"'%  min(front_lidar_samples))
-        #self.get_logger().info('right scan slice: "%s"'%  min(right_lidar_samples))
-
-        if front_lidar_min < SAFE_STOP_DISTANCE:
-            if self.turtlebot_moving == True:
-                self.cmd.linear.x = 0.0 
-                self.cmd.angular.z = 0.0 
-                self.publisher_.publish(self.cmd)
-                self.turtlebot_moving = False
-                self.get_logger().info('Stopping')
-                return
-        elif front_lidar_min < LIDAR_AVOID_DISTANCE:
-                self.cmd.linear.x = 0.07 
-                if (right_lidar_min > left_lidar_min):
-                   self.cmd.angular.z = -0.3
-                else:
-                   self.cmd.angular.z = 0.3
-                self.publisher_.publish(self.cmd)
-                self.get_logger().info('Turning')
-                self.turtlebot_moving = True
-        else:
-            self.cmd.linear.x = 0.3
-            self.cmd.linear.z = 0.0
-            self.publisher_.publish(self.cmd)
-            self.turtlebot_moving = True
-            
-
-        self.get_logger().info('Distance of the obstacle : %f' % front_lidar_min)
-        self.get_logger().info('I receive: "%s"' %
-                               str(self.odom_data))
-        if self.stall == True:
-           self.get_logger().info('Stall reported')
-        
-        # Display the message on the console
-        self.get_logger().info('Publishing: "%s"' % self.cmd)
-        
         
  
 
@@ -321,13 +269,13 @@ class RandomWalk(Node):
         if state_ == 1:
             #turn left
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = 0.3 
+            self.cmd.angular.z = 0.2
             self.publisher_.publish(self.cmd)
             TURNED = True
         elif state_ == 2:
             #turn right
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = -0.3 
+            self.cmd.angular.z = -0.2
             self.publisher_.publish(self.cmd)
             TURNED = True
         elif self.stall == True:
@@ -337,8 +285,8 @@ class RandomWalk(Node):
             self.publisher_.publish(self.cmd)
         elif state_ == 0:
             #find the wall
-            self.cmd.linear.x = 0.3 
-            self.cmd.angular.z = -0.3 
+            self.cmd.linear.x = 0.2
+            self.cmd.angular.z = -0.2
             self.publisher_.publish(self.cmd)   
         elif state_ == 3:
             #follow wall drift left
