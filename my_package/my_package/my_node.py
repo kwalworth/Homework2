@@ -130,7 +130,7 @@ class RandomWalk(Node):
                     writer = csv.writer(f)
                     writer.writerow([position.x, position.y])
             except Exception as e:
-                #self.get_logger().info('An error occurred')
+                self.spin(1)
             COUNT2 = 0
         else:
             COUNT2 = COUNT2 + 1
