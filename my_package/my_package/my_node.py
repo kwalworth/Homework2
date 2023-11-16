@@ -64,7 +64,7 @@ state_dict_ = {
 class RandomWalk(Node):
 
     def __init__(self):
-        self.get_logger().info('ARE WE EVEN GETTING HERE?!?!?!?!?!?!?!')
+        #self.get_logger().info('ARE WE EVEN GETTING HERE?!?!?!?!?!?!?!')
         super().__init__('random_walk_node')
         self.scan_cleaned = []
         self.stall = False
@@ -130,7 +130,7 @@ class RandomWalk(Node):
                     writer = csv.writer(f)
                     writer.writerow([position.x, position.y])
             except Exception as e:
-                self.get_logger().info('An error occurred')
+                #self.get_logger().info('An error occurred')
             COUNT2 = 0
         else:
             COUNT2 = COUNT2 + 1
@@ -184,7 +184,7 @@ class RandomWalk(Node):
         #global LEFT
         global COUNT3
 
-        self.get_logger().info('timer_callback_Kaden2 Accessed')
+        #self.get_logger().info('timer_callback_Kaden2 Accessed')
 
         
         if(FOUND_WALL == True):
@@ -312,7 +312,7 @@ class RandomWalk(Node):
             #diff_lidar_front = FRONT - front_lidar_min
             diff_lidar_right = RIGHT - right_lidar_min
             #diff_lidar_left = LEFT - left_lidar_min
-            self.get_logger().info('right_min_diff: "%s"' % (abs(diff_lidar_right)))
+            #self.get_logger().info('right_min_diff: "%s"' % (abs(diff_lidar_right)))
             COUNT3 = 25
             if(abs(diff_lidar_right) < 0.01):
                 self.stall = True
