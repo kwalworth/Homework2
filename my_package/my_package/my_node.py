@@ -1,5 +1,6 @@
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSProfile
 from nav_msgs.msg import OccupancyGrid , Odometry
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
@@ -330,13 +331,23 @@ def localControl(scan):
 class navigationControl(Node):
     def __init__(self):
         super().__init__('Exploration')
-        self.subscription = self.create_subscription(OccupancyGrid,'map',self.map_callback,10)
-        self.subscription = self.create_subscription(Odometry,'odom',self.odom_callback,10)
-        self.subscription = self.create_subscription(LaserScan,'scan',self.scan_callback,10)
-        self.publisher = self.create_publisher(Twist, 'cmd_vel', 10)
+
+        # Explicitly set QoS profiles for subscriptions and publishers
+        qos = QoSProfile(depth=10)  # Adjust the depth value as needed
+
+        self.subscription_map = self.create_subscription(
+            OccupancyGrid, 'map', self.map_callback, qos)
+        self.subscription_odom = self.create_subscription(
+            Odometry, 'odom', self.odom_callback, qos)
+        self.subscription_scan = self.create_subscription(
+            LaserScan, 'scan', self.scan_callback, qos)
+        self.publisher_cmd_vel = self.create_publisher(
+            Twist, 'cmd_vel', qos)
+
         print("[BILGI] KESİF MODU AKTİF")
         self.kesif = True
-        threading.Thread(target=self.exp).start() #Kesif fonksiyonunu thread olarak calistirir.
+        threading.Thread(target=self.exp).start()  # Kesif fonksiyonunu thread olarak calistirir.
+
         
     def exp(self):
         twist = Twist()
