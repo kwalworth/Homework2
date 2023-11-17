@@ -334,19 +334,21 @@ class navigationControl(Node):
 
         # Explicitly set QoS profiles for subscriptions and publishers
         qos = QoSProfile(depth=10)  # Adjust the depth value as needed
+        qos_scan = QoSProfile(depth=10)  # Adjust the depth value as needed
 
         self.subscription_map = self.create_subscription(
             OccupancyGrid, 'map', self.map_callback, qos)
         self.subscription_odom = self.create_subscription(
             Odometry, 'odom', self.odom_callback, qos)
         self.subscription_scan = self.create_subscription(
-            LaserScan, 'scan', self.scan_callback, qos)
+            LaserScan, 'scan', self.scan_callback, qos_scan)
         self.publisher_cmd_vel = self.create_publisher(
             Twist, 'cmd_vel', qos)
 
         print("[BILGI] KESİF MODU AKTİF")
         self.kesif = True
         threading.Thread(target=self.exp).start()  # Kesif fonksiyonunu thread olarak calistirir.
+
 
         
     def exp(self):
