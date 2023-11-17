@@ -1,386 +1,417 @@
 import rclpy
-# import the ROS2 python libraries
 from rclpy.node import Node
-# import the Twist module from geometry_msgs interface
+from nav_msgs.msg import OccupancyGrid , Odometry
 from geometry_msgs.msg import Twist
-# import the LaserScan module from sensor_msgs interface
 from sensor_msgs.msg import LaserScan
-from nav_msgs.msg import Odometry
-# import Quality of Service library, to set the correct profile and reliability in order to read sensor data.
-from rclpy.qos import ReliabilityPolicy, QoSProfile
-import math
-import csv
+import numpy as np
+import heapq , math , random , yaml
+import scipy.interpolate as si
+import sys , threading , time
 
 
+with open("src/autonomous_exploration/config/params.yaml", 'r') as file:
+    params = yaml.load(file, Loader=yaml.FullLoader)
+
+lookahead_distance = params["lookahead_distance"]
+speed = params["speed"]
+expansion_size = params["expansion_size"]
+target_error = params["target_error"]
+robot_r = params["robot_r"]
+
+pathGlobal = 0
+
+def euler_from_quaternion(x,y,z,w):
+    t0 = +2.0 * (w * x + y * z)
+    t1 = +1.0 - 2.0 * (x * x + y * y)
+    roll_x = math.atan2(t0, t1)
+    t2 = +2.0 * (w * y - z * x)
+    t2 = +1.0 if t2 > +1.0 else t2
+    t2 = -1.0 if t2 < -1.0 else t2
+    pitch_y = math.asin(t2)
+    t3 = +2.0 * (w * z + x * y)
+    t4 = +1.0 - 2.0 * (y * y + z * z)
+    yaw_z = math.atan2(t3, t4)
+    return yaw_z
+
+def heuristic(a, b):
+    return np.sqrt((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2)
+
+def astar(array, start, goal):
+    neighbors = [(0,1),(0,-1),(1,0),(-1,0),(1,1),(1,-1),(-1,1),(-1,-1)]
+    close_set = set()
+    came_from = {}
+    gscore = {start:0}
+    fscore = {start:heuristic(start, goal)}
+    oheap = []
+    heapq.heappush(oheap, (fscore[start], start))
+    while oheap:
+        current = heapq.heappop(oheap)[1]
+        if current == goal:
+            data = []
+            while current in came_from:
+                data.append(current)
+                current = came_from[current]
+            data = data + [start]
+            data = data[::-1]
+            return data
+        close_set.add(current)
+        for i, j in neighbors:
+            neighbor = current[0] + i, current[1] + j
+            tentative_g_score = gscore[current] + heuristic(current, neighbor)
+            if 0 <= neighbor[0] < array.shape[0]:
+                if 0 <= neighbor[1] < array.shape[1]:                
+                    if array[neighbor[0]][neighbor[1]] == 1:
+                        continue
+                else:
+                    # array bound y walls
+                    continue
+            else:
+                # array bound x walls
+                continue
+            if neighbor in close_set and tentative_g_score >= gscore.get(neighbor, 0):
+                continue
+            if  tentative_g_score < gscore.get(neighbor, 0) or neighbor not in [i[1]for i in oheap]:
+                came_from[neighbor] = current
+                gscore[neighbor] = tentative_g_score
+                fscore[neighbor] = tentative_g_score + heuristic(neighbor, goal)
+                heapq.heappush(oheap, (fscore[neighbor], neighbor))
+    # If no path to goal was found, return closest path to goal
+    if goal not in came_from:
+        closest_node = None
+        closest_dist = float('inf')
+        for node in close_set:
+            dist = heuristic(node, goal)
+            if dist < closest_dist:
+                closest_node = node
+                closest_dist = dist
+        if closest_node is not None:
+            data = []
+            while closest_node in came_from:
+                data.append(closest_node)
+                closest_node = came_from[closest_node]
+            data = data + [start]
+            data = data[::-1]
+            return data
+    return False
+
+def bspline_planning(array, sn):
+    try:
+        array = np.array(array)
+        x = array[:, 0]
+        y = array[:, 1]
+        N = 2
+        t = range(len(x))
+        x_tup = si.splrep(t, x, k=N)
+        y_tup = si.splrep(t, y, k=N)
+
+        x_list = list(x_tup)
+        xl = x.tolist()
+        x_list[1] = xl + [0.0, 0.0, 0.0, 0.0]
+
+        y_list = list(y_tup)
+        yl = y.tolist()
+        y_list[1] = yl + [0.0, 0.0, 0.0, 0.0]
+
+        ipl_t = np.linspace(0.0, len(x) - 1, sn)
+        rx = si.splev(ipl_t, x_list)
+        ry = si.splev(ipl_t, y_list)
+        path = [(rx[i],ry[i]) for i in range(len(rx))]
+    except:
+        path = array
+    return path
+
+def pure_pursuit(current_x, current_y, current_heading, path, index):
+    global lookahead_distance
+    closest_point = None
+    v = speed
+    for i in range(index,len(path)):
+        x = path[i][0]
+        y = path[i][1]
+        distance = math.hypot(current_x - x, current_y - y)
+        if lookahead_distance < distance:
+            closest_point = (x, y)
+            index = i
+            break
+    if closest_point is not None:
+        target_heading = math.atan2(closest_point[1] - current_y, closest_point[0] - current_x)
+        desired_steering_angle = target_heading - current_heading
+    else:
+        target_heading = math.atan2(path[-1][1] - current_y, path[-1][0] - current_x)
+        desired_steering_angle = target_heading - current_heading
+        index = len(path)-1
+    if desired_steering_angle > math.pi:
+        desired_steering_angle -= 2 * math.pi
+    elif desired_steering_angle < -math.pi:
+        desired_steering_angle += 2 * math.pi
+    if desired_steering_angle > math.pi/6 or desired_steering_angle < -math.pi/6:
+        sign = 1 if desired_steering_angle > 0 else -1
+        desired_steering_angle = sign * math.pi/4
+        v = 0.0
+    return v,desired_steering_angle,index
+
+def frontierB(matrix):
+    for i in range(len(matrix)):
+        for j in range(len(matrix[i])):
+            if matrix[i][j] == 0.0:
+                if i > 0 and matrix[i-1][j] < 0:
+                    matrix[i][j] = 2
+                elif i < len(matrix)-1 and matrix[i+1][j] < 0:
+                    matrix[i][j] = 2
+                elif j > 0 and matrix[i][j-1] < 0:
+                    matrix[i][j] = 2
+                elif j < len(matrix[i])-1 and matrix[i][j+1] < 0:
+                    matrix[i][j] = 2
+    return matrix
+
+def assign_groups(matrix):
+    group = 1
+    groups = {}
+    for i in range(len(matrix)):
+        for j in range(len(matrix[0])):
+            if matrix[i][j] == 2:
+                group = dfs(matrix, i, j, group, groups)
+    return matrix, groups
+
+def dfs(matrix, i, j, group, groups):
+    if i < 0 or i >= len(matrix) or j < 0 or j >= len(matrix[0]):
+        return group
+    if matrix[i][j] != 2:
+        return group
+    if group in groups:
+        groups[group].append((i, j))
+    else:
+        groups[group] = [(i, j)]
+    matrix[i][j] = 0
+    dfs(matrix, i + 1, j, group, groups)
+    dfs(matrix, i - 1, j, group, groups)
+    dfs(matrix, i, j + 1, group, groups)
+    dfs(matrix, i, j - 1, group, groups)
+    dfs(matrix, i + 1, j + 1, group, groups) # sağ alt çapraz
+    dfs(matrix, i - 1, j - 1, group, groups) # sol üst çapraz
+    dfs(matrix, i - 1, j + 1, group, groups) # sağ üst çapraz
+    dfs(matrix, i + 1, j - 1, group, groups) # sol alt çapraz
+    return group + 1
+
+def fGroups(groups):
+    sorted_groups = sorted(groups.items(), key=lambda x: len(x[1]), reverse=True)
+    top_five_groups = [g for g in sorted_groups[:5] if len(g[1]) > 2]    
+    return top_five_groups
+
+def calculate_centroid(x_coords, y_coords):
+    n = len(x_coords)
+    sum_x = sum(x_coords)
+    sum_y = sum(y_coords)
+    mean_x = sum_x / n
+    mean_y = sum_y / n
+    centroid = (int(mean_x), int(mean_y))
+    return centroid
+
+#Bu fonksiyon en buyuk 5 gruptan target_error*2 uzaklıktan daha uzak olan ve robota en yakın olanı seçer.
+"""
+def findClosestGroup(matrix,groups, current,resolution,originX,originY):
+    targetP = None
+    distances = []
+    paths = []
+    min_index = -1
+    for i in range(len(groups)):
+        middle = calculate_centroid([p[0] for p in groups[i][1]],[p[1] for p in groups[i][1]]) 
+        path = astar(matrix, current, middle)
+        path = [(p[1]*resolution+originX,p[0]*resolution+originY) for p in path]
+        total_distance = pathLength(path)
+        distances.append(total_distance)
+        paths.append(path)
+    for i in range(len(distances)):
+        if distances[i] > target_error*3:
+            if min_index == -1 or distances[i] < distances[min_index]:
+                min_index = i
+    if min_index != -1:
+        targetP = paths[min_index]
+    else: #gruplar target_error*2 uzaklıktan daha yakınsa random bir noktayı hedef olarak seçer. Bu robotun bazı durumlardan kurtulmasını sağlar.
+        index = random.randint(0,len(groups)-1)
+        target = groups[index][1]
+        target = target[random.randint(0,len(target)-1)]
+        path = astar(matrix, current, target)
+        targetP = [(p[1]*resolution+originX,p[0]*resolution+originY) for p in path]
+    return targetP
+"""
+def findClosestGroup(matrix,groups, current,resolution,originX,originY):
+    targetP = None
+    distances = []
+    paths = []
+    score = []
+    max_score = -1 #max score index
+    for i in range(len(groups)):
+        middle = calculate_centroid([p[0] for p in groups[i][1]],[p[1] for p in groups[i][1]]) 
+        path = astar(matrix, current, middle)
+        path = [(p[1]*resolution+originX,p[0]*resolution+originY) for p in path]
+        total_distance = pathLength(path)
+        distances.append(total_distance)
+        paths.append(path)
+    for i in range(len(distances)):
+        if distances[i] == 0:
+            score.append(0)
+        else:
+            score.append(len(groups[i][1])/distances[i])
+    for i in range(len(distances)):
+        if distances[i] > target_error*3:
+            if max_score == -1 or score[i] > score[max_score]:
+                max_score = i
+    if max_score != -1:
+        targetP = paths[max_score]
+    else: #gruplar target_error*2 uzaklıktan daha yakınsa random bir noktayı hedef olarak seçer. Bu robotun bazı durumlardan kurtulmasını sağlar.
+        index = random.randint(0,len(groups)-1)
+        target = groups[index][1]
+        target = target[random.randint(0,len(target)-1)]
+        path = astar(matrix, current, target)
+        targetP = [(p[1]*resolution+originX,p[0]*resolution+originY) for p in path]
+    return targetP
+
+def pathLength(path):
+    for i in range(len(path)):
+        path[i] = (path[i][0],path[i][1])
+        points = np.array(path)
+    differences = np.diff(points, axis=0)
+    distances = np.hypot(differences[:,0], differences[:,1])
+    total_distance = np.sum(distances)
+    return total_distance
+
+def costmap(data,width,height,resolution):
+    data = np.array(data).reshape(height,width)
+    wall = np.where(data == 100)
+    for i in range(-expansion_size,expansion_size+1):
+        for j in range(-expansion_size,expansion_size+1):
+            if i  == 0 and j == 0:
+                continue
+            x = wall[0]+i
+            y = wall[1]+j
+            x = np.clip(x,0,height-1)
+            y = np.clip(y,0,width-1)
+            data[x,y] = 100
+    data = data*resolution
+    return data
+
+def exploration(data,width,height,resolution,column,row,originX,originY):
+        global pathGlobal #Global degisken
+        data = costmap(data,width,height,resolution) #Engelleri genislet
+        data[row][column] = 0 #Robot Anlık Konum
+        data[data > 5] = 1 # 0 olanlar gidilebilir yer, 100 olanlar kesin engel
+        data = frontierB(data) #Sınır noktaları bul
+        data,groups = assign_groups(data) #Sınır noktaları gruplandır
+        groups = fGroups(groups) #Grupları küçükten büyüğe sırala. En buyuk 5 grubu al
+        if len(groups) == 0: #Grup yoksa kesif tamamlandı
+            path = -1
+        else: #Grup varsa en yakın grubu bul
+            data[data < 0] = 1 #-0.05 olanlar bilinmeyen yer. Gidilemez olarak isaretle. 0 = gidilebilir, 1 = gidilemez.
+            path = findClosestGroup(data,groups,(row,column),resolution,originX,originY) #En yakın grubu bul
+            if path != None: #Yol varsa BSpline ile düzelt
+                path = bspline_planning(path,len(path)*5)
+            else:
+                path = -1
+        pathGlobal = path
+        return
+
+def localControl(scan):
+    v = None
+    w = None
+    for i in range(60):
+        if scan[i] < robot_r:
+            v = 0.2
+            w = -math.pi/4 
+            break
+    if v == None:
+        for i in range(300,360):
+            if scan[i] < robot_r:
+                v = 0.2
+                w = math.pi/4
+                break
+    return v,w
 
 
-LINEAR_VEL = 0.22
-STOP_DISTANCE = 0.2
-LIDAR_ERROR = 0.05
-LIDAR_AVOID_DISTANCE = 0.7
-SAFE_STOP_DISTANCE = STOP_DISTANCE + LIDAR_ERROR
-RIGHT_SIDE_INDEX = 270
-RIGHT_FRONT_INDEX = 210
-LEFT_FRONT_INDEX=150
-LEFT_SIDE_INDEX=90
-
-#These are all variables I created. Not all of them are in use now, but they were at some point
-DISTANCE_I_SET = 1.0
-DISTANCE_I_SET2 = 1.0
-DISTANCE_I_SET_LEFT = 0.4
-FOUND_WALL = False
-KEEP_TURNING = False
-COUNT = 100
-COUNT2 = 0
-COUNT3 = 25
-TURNED = False
-RESET = False
-FRONT = 0
-RIGHT = 0
-LEFT = 0
-
-#Start of code from: https://www.theconstructsim.com/wall-follower-algorithm/
-pub_ = None
-regions_ = {
-    'right': 0,
-    'fright': 0,
-    'front': 0,
-    'fleft': 0,
-    'left': 0,
-}
-state_ = 0
-state_dict_ = {
-    0: 'find the wall',
-    1: 'turn left',
-    2: 'turn right',
-    3: 'follow the wall',
-    4: 'follow the wall drift',
-    5: 'get away from the wall',
-}
-#End of code from: https://www.theconstructsim.com/wall-follower-algorithm/
-
-
-
-class RandomWalk(Node):
-
+class navigationControl(Node):
     def __init__(self):
-        super().__init__('random_walk_node')
-        self.scan_cleaned = []
-        self.stall = False
-        self.turtlebot_moving = False
-        self.publisher_ = self.create_publisher(Twist, 'cmd_vel', 10)
-        self.subscriber1 = self.create_subscription(
-            LaserScan,
-            '/scan',
-            self.listener_callback1,
-            QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT))
-        self.subscriber2 = self.create_subscription(
-            Odometry,
-            '/odom',
-            self.listener_callback2,
-            QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT))
-        self.laser_forward = 0
-        self.odom_data = 0
-        timer_period = 0.5
-        self.pose_saved=''
-        self.cmd = Twist()
-        self.timer = self.create_timer(timer_period, self.timer_callback_Kaden2)
-        #Check right above this, this is where you call your code
-        # Get the current working directory, I needed to know where "path.csv" was
-        #current_directory = os.getcwd()
-        #self.get_logger().info(f'Current working directory: {current_directory}')
-
-
-    def listener_callback1(self, msg1):
-        #self.get_logger().info('scan: "%s"' % msg1.ranges)
-        scan = msg1.ranges
-        self.scan_cleaned = []
-       
-        #self.get_logger().info('scan: "%s"' % scan)
-        # Assume 360 range measurements
-        for reading in scan:
-            if reading == float('Inf'):
-                self.scan_cleaned.append(3.5)
-            elif math.isnan(reading):
-                self.scan_cleaned.append(0.0)
-            else:
-            	self.scan_cleaned.append(reading)
-    
-    
-    def listener_callback2(self, msg2):
-        #These COUNT is to only do something every x amount of cycles. And TURNED is a value controlled by a different function
-        global COUNT
-        global TURNED
-        global COUNT2
+        super().__init__('Exploration')
+        self.subscription = self.create_subscription(OccupancyGrid,'map',self.map_callback,10)
+        self.subscription = self.create_subscription(Odometry,'odom',self.odom_callback,10)
+        self.subscription = self.create_subscription(LaserScan,'scan',self.scan_callback,10)
+        self.publisher = self.create_publisher(Twist, 'cmd_vel', 10)
+        print("[BILGI] KESİF MODU AKTİF")
+        self.kesif = True
+        threading.Thread(target=self.exp).start() #Kesif fonksiyonunu thread olarak calistirir.
         
-        position = msg2.pose.pose.position
-        orientation = msg2.pose.pose.orientation
-        (posx, posy, posz) = (position.x, position.y, position.z)
-        (qx, qy, qz, qw) = (orientation.x, orientation.y, orientation.z, orientation.w)
-        #self.get_logger().info('self position: {},{},{}'.format(posx,posy,posz));
-        #similarly for twist message if you need
-        #self.pose_saved=position
-        
-        #Writing my position to a file. I had to space it out because my file was filling up before the trial was over
-        if COUNT2 == 50:
-            #Try catch and writing to csv from Chat GPT
-            try:
-                with open('path.csv', 'a', newline='') as f:
-                    writer = csv.writer(f)
-                    writer.writerow([position.x, position.y])
-            except Exception as e:
-                self.get_logger().info('An error occurred')
-            COUNT2 = 0
-        else:
-            COUNT2 = COUNT2 + 1
-        
-        #self.get_logger().info('x="%s",y="%s"' % (position.x, position.y))
-        #This code was in effort to identify and stop stalling. It ends up never actually doing anything though. I left it so I can see my thought process
-        if TURNED == True:
-            COUNT = 100
-        else:
-            if COUNT == 100:
-                #self.get_logger().info('self position: {},{},{}'.format(posx,posy,posz)); I commented this out
-                # similarly for twist message if you need
-                self.pose_saved=position
-            if COUNT == 0:
-                #self.get_logger().info('self position: {},{},{}'.format(posx,posy,posz)); I commented this out
-                # similarly for twist message if you need
-                #self.pose_saved=position
-                
-                #Example of how to identify a stall..need better tuned position deltas; wheels spin and example fast
-                diffX = math.fabs(self.pose_saved.x- position.x)
-                diffY = math.fabs(self.pose_saved.y - position.y)
-                #self.get_logger().info('Saved position: ("%s", "%s"), Current position: ("%s", "%s"), diffX: "%s", diffY: "%s"' % (self.pose_saved.x, self.pose_saved.y, position.x, position.y, diffX, diffY))
-                #self.get_logger().info('We are stuck: "%s", "%s", "%s", front_min: "%s", left_min: "%s", right_min: "%s", rightfront_min: "%s"' % (self.stall, wall_found, state_description, front_lidar_min, left_lidar_min, right_lidar_min, rightfront_lidar_min))
-                if (diffX < 0.01 and diffY < 0.01):
-                    #self.get_logger().info('We are stuck')
-                    self.stall = True
+    def exp(self):
+        twist = Twist()
+        while True: #Sensor verileri gelene kadar bekle.
+            if not hasattr(self,'map_data') or not hasattr(self,'odom_data') or not hasattr(self,'scan_data'):
+                time.sleep(0.1)
+                continue
+            if self.kesif == True:
+                if isinstance(pathGlobal, int) and pathGlobal == 0:
+                    column = int((self.x - self.originX)/self.resolution)
+                    row = int((self.y- self.originY)/self.resolution)
+                    exploration(self.data,self.width,self.height,self.resolution,column,row,self.originX,self.originY)
+                    self.path = pathGlobal
                 else:
-                    self.stall = False
-                    #self.get_logger().info('We are not stuck')
-                COUNT = 100
-            else:
-                COUNT = COUNT - 1
-                
-            #csv_file_name = "path.csv"
-            #with open(csv_file_name, mode='w', newline='') as file:
-                # Create a CSV writer
-                #writer = csv.writer(file)
-                #writer.writerow([0, 1])
-        
-        return None
-   
-        
-    def timer_callback(self):
-        if (len(self.scan_cleaned)==0):
-    	    self.turtlebot_moving = False
-    	    return
-    	    
-        #left_lidar_samples = self.scan_cleaned[LEFT_SIDE_INDEX:LEFT_FRONT_INDEX]
-        #right_lidar_samples = self.scan_cleaned[RIGHT_FRONT_INDEX:RIGHT_SIDE_INDEX]
-        #front_lidar_samples = self.scan_cleaned[LEFT_FRONT_INDEX:RIGHT_FRONT_INDEX]
-        
-        left_lidar_min = min(self.scan_cleaned[LEFT_SIDE_INDEX:LEFT_FRONT_INDEX])
-        right_lidar_min = min(self.scan_cleaned[RIGHT_FRONT_INDEX:RIGHT_SIDE_INDEX])
-        front_lidar_min = min(self.scan_cleaned[LEFT_FRONT_INDEX:RIGHT_FRONT_INDEX])
-
-        #self.get_logger().info('left scan slice: "%s"'%  min(left_lidar_samples))
-        #self.get_logger().info('front scan slice: "%s"'%  min(front_lidar_samples))
-        #self.get_logger().info('right scan slice: "%s"'%  min(right_lidar_samples))
-
-        if front_lidar_min < SAFE_STOP_DISTANCE:
-            if self.turtlebot_moving == True:
-                self.cmd.linear.x = 0.0 
-                self.cmd.angular.z = 0.0 
-                self.publisher_.publish(self.cmd)
-                self.turtlebot_moving = False
-                self.get_logger().info('Stopping')
-                return
-        elif front_lidar_min < LIDAR_AVOID_DISTANCE:
-                self.cmd.linear.x = 0.07 
-                if (right_lidar_min > left_lidar_min):
-                   self.cmd.angular.z = -0.3
-                else:
-                   self.cmd.angular.z = 0.3
-                self.publisher_.publish(self.cmd)
-                self.get_logger().info('Turning')
-                self.turtlebot_moving = True
-        else:
-            self.cmd.linear.x = 0.3
-            self.cmd.linear.z = 0.0
-            self.publisher_.publish(self.cmd)
-            self.turtlebot_moving = True
+                    self.path = pathGlobal
+                if isinstance(self.path, int) and self.path == -1:
+                    print("[BILGI] KESİF TAMAMLANDI")
+                    sys.exit()
+                self.c = int((self.path[-1][0] - self.originX)/self.resolution) 
+                self.r = int((self.path[-1][1] - self.originY)/self.resolution) 
+                self.kesif = False
+                self.i = 0
+                print("[BILGI] YENI HEDEF BELİRLENDI")
+                t = pathLength(self.path)/speed
+                t = t - 0.2 #x = v * t formülüne göre hesaplanan sureden 0.2 saniye cikarilir. t sure sonra kesif fonksiyonu calistirilir.
+                self.t = threading.Timer(t,self.target_callback) #Hedefe az bir sure kala kesif fonksiyonunu calistirir.
+                self.t.start()
             
+            #Rota Takip Blok Baslangic
+            else:
+                v , w = localControl(self.scan)
+                if v == None:
+                    v, w,self.i = pure_pursuit(self.x,self.y,self.yaw,self.path,self.i)
+                if(abs(self.x - self.path[-1][0]) < target_error and abs(self.y - self.path[-1][1]) < target_error):
+                    v = 0.0
+                    w = 0.0
+                    self.kesif = True
+                    print("[BILGI] HEDEFE ULASILDI")
+                    self.t.join() #Thread bitene kadar bekle.
+                twist.linear.x = v
+                twist.angular.z = w
+                self.publisher.publish(twist)
+                time.sleep(0.1)
+            #Rota Takip Blok Bitis
 
-        self.get_logger().info('Distance of the obstacle : %f' % front_lidar_min)
-        self.get_logger().info('I receive: "%s"' %
-                               str(self.odom_data))
-        if self.stall == True:
-           self.get_logger().info('Stall reported')
+    def target_callback(self):
+        exploration(self.data,self.width,self.height,self.resolution,self.c,self.r,self.originX,self.originY)
         
-        # Display the message on the console
-        self.get_logger().info('Publishing: "%s"' % self.cmd)
-        
-        
- 
+    def scan_callback(self,msg):
+        self.scan_data = msg
+        self.scan = msg.ranges
 
-    def timer_callback_Kaden2(self):
-        
-        global FOUND_WALL
-        global KEEP_TURNING
-        global TURNED
-        #global FRONT
-        global RIGHT
-        #global LEFT
-        global COUNT3
-        
-        if(FOUND_WALL == True):
-            wall_found = 'We found a wall'
-        else:
-            wall_found = "We have not found a wall"
-        
-        if (len(self.scan_cleaned)==0):
-    	    self.turtlebot_moving = False
-    	    return
-        
-        left_lidar_min = min(self.scan_cleaned[LEFT_SIDE_INDEX:LEFT_FRONT_INDEX])
-        right_lidar_min = min(self.scan_cleaned[RIGHT_FRONT_INDEX:RIGHT_SIDE_INDEX])
-        front_lidar_min = min(self.scan_cleaned[LEFT_FRONT_INDEX:RIGHT_FRONT_INDEX])
-        rightfront_lidar_min = self.scan_cleaned[RIGHT_FRONT_INDEX]
-        
-        if COUNT3 == 25:
-            FRONT = front_lidar_min
-            RIGHT = right_lidar_min
-            LEFT = left_lidar_min
-        
-        #If self.stall is true, I want it to run for a little before becoming false, thus COUNT3 == 20    
-        if COUNT3 == 20 and self.stall == True:
-            self.stall = False
-        
-        COUNT3 = COUNT3 - 1
-        
-        #The follow wall code I found was good for finding a wall, but not for following it. This is my code to follow the wall.
-        if FOUND_WALL == True and right_lidar_min > DISTANCE_I_SET or KEEP_TURNING == True:
-            state_description = 'case 0 - we need to turn right'
-            state_ = 2
-            KEEP_TURNING = True
-            if KEEP_TURNING == True:
-                if rightfront_lidar_min < DISTANCE_I_SET:
-                    KEEP_TURNING = False
-        elif FOUND_WALL == True and right_lidar_min < DISTANCE_I_SET - .2 and front_lidar_min > SAFE_STOP_DISTANCE:
-            state_description = 'case 0.01 - we need to drift left'
-            state_ = 5
-        elif FOUND_WALL == True and right_lidar_min < DISTANCE_I_SET and front_lidar_min > SAFE_STOP_DISTANCE and rightfront_lidar_min >= DISTANCE_I_SET - 0.1:
-            state_description = 'case 0.1 - we need to drift right'
-            state_ = 4
-        elif FOUND_WALL == True and right_lidar_min < DISTANCE_I_SET and front_lidar_min > SAFE_STOP_DISTANCE and rightfront_lidar_min < DISTANCE_I_SET - 0.1:
-            state_description = 'case 0.1 - we need to drift left'
-            state_ = 3
-        elif FOUND_WALL == True and right_lidar_min < DISTANCE_I_SET and front_lidar_min < SAFE_STOP_DISTANCE:
-            state_description = 'case 0.2 - we need to turn left'
-            state_ = 1
-        #Start of code from: https://www.theconstructsim.com/wall-follower-algorithm/
-        elif front_lidar_min > DISTANCE_I_SET and left_lidar_min > DISTANCE_I_SET_LEFT and right_lidar_min > SAFE_STOP_DISTANCE:
-            state_description = 'case 1 - nothing'
-            state_ = 0
-        elif front_lidar_min < DISTANCE_I_SET and left_lidar_min > DISTANCE_I_SET_LEFT and right_lidar_min > DISTANCE_I_SET:
-            state_description = 'case 2 - front'
-            state_ = 1
-            FOUND_WALL = True
-        elif front_lidar_min > DISTANCE_I_SET and left_lidar_min > DISTANCE_I_SET_LEFT and right_lidar_min < DISTANCE_I_SET:
-            state_description = 'case 3 - fright'
-            state_ = 3
-            FOUND_WALL = True
-        elif front_lidar_min > DISTANCE_I_SET and left_lidar_min < DISTANCE_I_SET_LEFT and right_lidar_min > DISTANCE_I_SET:
-            state_description = 'case 4 - fleft'
-            state_ = 0
-        elif front_lidar_min < DISTANCE_I_SET and left_lidar_min > DISTANCE_I_SET_LEFT and right_lidar_min < DISTANCE_I_SET:
-            state_description = 'case 5 - front and fright'
-            state_ = 1
-            FOUND_WALL = True
-        elif front_lidar_min < DISTANCE_I_SET and left_lidar_min < DISTANCE_I_SET_LEFT and right_lidar_min > DISTANCE_I_SET:
-            state_description = 'case 6 - front and fleft'
-            state_ = 1
-        elif front_lidar_min < DISTANCE_I_SET and left_lidar_min < DISTANCE_I_SET_LEFT and right_lidar_min < DISTANCE_I_SET:
-            state_description = 'case 7 - front and fleft and fright'
-            state_ = 1
-            FOUND_WALL = True
-        elif front_lidar_min > DISTANCE_I_SET and left_lidar_min < DISTANCE_I_SET_LEFT and right_lidar_min < DISTANCE_I_SET:
-            state_description = 'case 8 - fleft and fright'
-            state_ = 0
-            FOUND_WALL = True
-        else:
-            state_description = 'unknown case'
-            rospy.loginfo(regions)
-        
-        if state_ == 0 or state_ == 3 or state_ == 4:
-            if TURNED == True:
-                TURNED = False
-        
-        if state_ == 1:
-            #turn left
-            self.cmd.linear.x = 0.0
-            self.cmd.angular.z = 0.2
-            self.publisher_.publish(self.cmd)
-            TURNED = True
-        elif state_ == 2:
-            #turn right
-            self.cmd.linear.x = 0.0
-            self.cmd.angular.z = -0.2
-            self.publisher_.publish(self.cmd)
-            TURNED = True
-        elif self.stall == True:
-            #move backwards
-            self.cmd.linear.x = -0.1 
-            self.cmd.angular.z = 0.2
-            self.publisher_.publish(self.cmd)
-        elif state_ == 0:
-            #find the wall
-            self.cmd.linear.x = 0.2
-            self.cmd.angular.z = -0.2
-            self.publisher_.publish(self.cmd)   
-        elif state_ == 3:
-            #follow wall drift left
-            self.cmd.linear.x = 0.1
-            self.cmd.angular.z = 0.2 
-            self.publisher_.publish(self.cmd)
-        elif state_ == 4:
-            #follow wall drift right
-            self.cmd.linear.x = 0.1
-            self.cmd.angular.z = -0.2 
-            self.publisher_.publish(self.cmd)
-        elif state_ == 5:
-            #Get away from wall
-            self.cmd.linear.x = 0.05
-            self.cmd.angular.z = 0.2 
-            self.publisher_.publish(self.cmd)
-        #End of code from: https://www.theconstructsim.com/wall-follower-algorithm/ although I added some things in there        
-        if COUNT3 == 0:
-            #diff_lidar_front = FRONT - front_lidar_min
-            diff_lidar_right = RIGHT - right_lidar_min
-            #diff_lidar_left = LEFT - left_lidar_min
-            self.get_logger().info('right_min_diff: "%s"' % (abs(diff_lidar_right)))
-            COUNT3 = 25
-            if(abs(diff_lidar_right) < 0.01):
-                self.stall = True
+    def map_callback(self,msg):
+        self.map_data = msg
+        self.resolution = self.map_data.info.resolution
+        self.originX = self.map_data.info.origin.position.x
+        self.originY = self.map_data.info.origin.position.y
+        self.width = self.map_data.info.width
+        self.height = self.map_data.info.height
+        self.data = self.map_data.data
 
-
+    def odom_callback(self,msg):
+        self.odom_data = msg
+        self.x = msg.pose.pose.position.x
+        self.y = msg.pose.pose.position.y
+        self.yaw = euler_from_quaternion(msg.pose.pose.orientation.x,msg.pose.pose.orientation.y,
+        msg.pose.pose.orientation.z,msg.pose.pose.orientation.w)
 
 
 def main(args=None):
-    # initialize the ROS communication
     rclpy.init(args=args)
-    # declare the node constructor
-    random_walk_node = RandomWalk()
-    # pause the program execution, waits for a request to kill the node (ctrl+c)
-    rclpy.spin(random_walk_node)
-    # Explicity destroy the node
-    random_walk_node.destroy_node()
-    # shutdown the ROS communication
+    navigation_control = navigationControl()
+    rclpy.spin(navigation_control)
+    navigation_control.destroy_node()
     rclpy.shutdown()
-
-
 
 if __name__ == '__main__':
     main()
