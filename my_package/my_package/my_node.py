@@ -335,7 +335,6 @@ class navigationControl(Node):
         self.subscription = self.create_subscription(LaserScan,'scan',self.scan_callback,10)
         self.publisher = self.create_publisher(Twist, 'cmd_vel', 10)
         print("[BILGI] KESİF MODU AKTİF")
-        print("Publisher QoS:", publisher.get_actual_qos())
         print("Subscriber QoS:", subscription.get_actual_qos())
         self.kesif = True
         threading.Thread(target=self.exp).start() #Kesif fonksiyonunu thread olarak calistirir.
