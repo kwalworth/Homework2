@@ -332,7 +332,12 @@ class navigationControl(Node):
     def __init__(self):
         super().__init__('Exploration')
 
-        qos_profile = QoSProfile(reliability=QoSReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT, durability=QoSDurabilityPolicy.RMW_QOS_POLICY_DURABILITY_VOLATILE)
+        qos_profile = QoSProfile(
+            reliability=QoSReliabilityPolicy.BEST_EFFORT,
+            durability=QoSDurabilityPolicy.VOLATILE,
+            history=QoSHistoryPolicy.RMW_QOS_POLICY_HISTORY_KEEP_LAST,
+            depth=10  # You can adjust the depth value as needed
+        )
         
         self.subscription = self.create_subscription(OccupancyGrid,'map',self.map_callback,qos_profile)
         self.subscription = self.create_subscription(Odometry,'odom',self.odom_callback,qos_profile)
