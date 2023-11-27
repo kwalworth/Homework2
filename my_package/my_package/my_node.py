@@ -3,6 +3,7 @@ from rclpy.node import Node
 from nav_msgs.msg import OccupancyGrid , Odometry
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
+from rclpy.qos import QoSProfile, QoSDurabilityPolicy, QoSReliabilityPolicy
 import numpy as np
 import heapq , math , random , yaml
 import scipy.interpolate as si
@@ -330,10 +331,13 @@ def localControl(scan):
 class navigationControl(Node):
     def __init__(self):
         super().__init__('Exploration')
-        self.subscription = self.create_subscription(OccupancyGrid,'map',self.map_callback,10)
-        self.subscription = self.create_subscription(Odometry,'odom',self.odom_callback,10)
-        self.subscription = self.create_subscription(LaserScan,'scan',self.scan_callback,10)
-        self.publisher = self.create_publisher(Twist, 'cmd_vel', 10)
+
+        qos_profile = QoSProfile(reliability=QoSReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT, durability=QoSDurabilityPolicy.RMW_QOS_POLICY_DURABILITY_VOLATILE)
+        
+        self.subscription = self.create_subscription(OccupancyGrid,'map',self.map_callback,qos_profile)
+        self.subscription = self.create_subscription(Odometry,'odom',self.odom_callback,qos_profile)
+        self.subscription = self.create_subscription(LaserScan,'scan',self.scan_callback,qos_profile
+        self.publisher = self.create_publisher(Twist, 'cmd_vel', qos_profile)
         print("[BILGI] KESİF MODU AKTİF")
         self.kesif = True
         threading.Thread(target=self.exp).start() #Kesif fonksiyonunu thread olarak calistirir.
