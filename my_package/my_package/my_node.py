@@ -336,7 +336,7 @@ class navigationControl(Node):
         
         self.subscription = self.create_subscription(OccupancyGrid,'map',self.map_callback,qos_profile)
         self.subscription = self.create_subscription(Odometry,'odom',self.odom_callback,qos_profile)
-        self.subscription = self.create_subscription(LaserScan,'scan',self.scan_callback,qos_profile
+        self.subscription = self.create_subscription(LaserScan,'scan',self.scan_callback,qos_profile)
         self.publisher = self.create_publisher(Twist, 'cmd_vel', qos_profile)
         print("[BILGI] KESİF MODU AKTİF")
         self.kesif = True
