@@ -187,10 +187,10 @@ def dfs(matrix, i, j, group, groups):
     dfs(matrix, i - 1, j, group, groups)
     dfs(matrix, i, j + 1, group, groups)
     dfs(matrix, i, j - 1, group, groups)
-    dfs(matrix, i + 1, j + 1, group, groups) # sağ alt çapraz
-    dfs(matrix, i - 1, j - 1, group, groups) # sol üst çapraz
-    dfs(matrix, i - 1, j + 1, group, groups) # sağ üst çapraz
-    dfs(matrix, i + 1, j - 1, group, groups) # sol alt çapraz
+    dfs(matrix, i + 1, j + 1, group, groups) # saÄŸ alt Ã§apraz
+    dfs(matrix, i - 1, j - 1, group, groups) # sol Ã¼st Ã§apraz
+    dfs(matrix, i - 1, j + 1, group, groups) # saÄŸ Ã¼st Ã§apraz
+    dfs(matrix, i + 1, j - 1, group, groups) # sol alt Ã§apraz
     return group + 1
 
 def fGroups(groups):
@@ -207,7 +207,7 @@ def calculate_centroid(x_coords, y_coords):
     centroid = (int(mean_x), int(mean_y))
     return centroid
 
-#Bu fonksiyon en buyuk 5 gruptan target_error*2 uzaklıktan daha uzak olan ve robota en yakın olanı seçer.
+#Bu fonksiyon en buyuk 5 gruptan target_error*2 uzaklÄ±ktan daha uzak olan ve robota en yakÄ±n olanÄ± seÃ§er.
 """
 def findClosestGroup(matrix,groups, current,resolution,originX,originY):
     targetP = None
@@ -227,7 +227,7 @@ def findClosestGroup(matrix,groups, current,resolution,originX,originY):
                 min_index = i
     if min_index != -1:
         targetP = paths[min_index]
-    else: #gruplar target_error*2 uzaklıktan daha yakınsa random bir noktayı hedef olarak seçer. Bu robotun bazı durumlardan kurtulmasını sağlar.
+    else: #gruplar target_error*2 uzaklÄ±ktan daha yakÄ±nsa random bir noktayÄ± hedef olarak seÃ§er. Bu robotun bazÄ± durumlardan kurtulmasÄ±nÄ± saÄŸlar.
         index = random.randint(0,len(groups)-1)
         target = groups[index][1]
         target = target[random.randint(0,len(target)-1)]
@@ -259,7 +259,7 @@ def findClosestGroup(matrix,groups, current,resolution,originX,originY):
                 max_score = i
     if max_score != -1:
         targetP = paths[max_score]
-    else: #gruplar target_error*2 uzaklıktan daha yakınsa random bir noktayı hedef olarak seçer. Bu robotun bazı durumlardan kurtulmasını sağlar.
+    else: #gruplar target_error*2 uzaklÄ±ktan daha yakÄ±nsa random bir noktayÄ± hedef olarak seÃ§er. Bu robotun bazÄ± durumlardan kurtulmasÄ±nÄ± saÄŸlar.
         index = random.randint(0,len(groups)-1)
         target = groups[index][1]
         target = target[random.randint(0,len(target)-1)]
@@ -294,17 +294,17 @@ def costmap(data,width,height,resolution):
 def exploration(data,width,height,resolution,column,row,originX,originY):
         global pathGlobal #Global degisken
         data = costmap(data,width,height,resolution) #Engelleri genislet
-        data[row][column] = 0 #Robot Anlık Konum
+        data[row][column] = 0 #Robot AnlÄ±k Konum
         data[data > 5] = 1 # 0 olanlar gidilebilir yer, 100 olanlar kesin engel
-        data = frontierB(data) #Sınır noktaları bul
-        data,groups = assign_groups(data) #Sınır noktaları gruplandır
-        groups = fGroups(groups) #Grupları küçükten büyüğe sırala. En buyuk 5 grubu al
-        if len(groups) == 0: #Grup yoksa kesif tamamlandı
+        data = frontierB(data) #SÄ±nÄ±r noktalarÄ± bul
+        data,groups = assign_groups(data) #SÄ±nÄ±r noktalarÄ± gruplandÄ±r
+        groups = fGroups(groups) #GruplarÄ± kÃ¼Ã§Ã¼kten bÃ¼yÃ¼ÄŸe sÄ±rala. En buyuk 5 grubu al
+        if len(groups) == 0: #Grup yoksa kesif tamamlandÄ±
             path = -1
-        else: #Grup varsa en yakın grubu bul
+        else: #Grup varsa en yakÄ±n grubu bul
             data[data < 0] = 1 #-0.05 olanlar bilinmeyen yer. Gidilemez olarak isaretle. 0 = gidilebilir, 1 = gidilemez.
-            path = findClosestGroup(data,groups,(row,column),resolution,originX,originY) #En yakın grubu bul
-            if path != None: #Yol varsa BSpline ile düzelt
+            path = findClosestGroup(data,groups,(row,column),resolution,originX,originY) #En yakÄ±n grubu bul
+            if path != None: #Yol varsa BSpline ile dÃ¼zelt
                 path = bspline_planning(path,len(path)*5)
             else:
                 path = -1
@@ -343,9 +343,9 @@ class navigationControl(Node):
         self.subscription = self.create_subscription(Odometry,'odom',self.odom_callback,qos_profile)
         self.subscription = self.create_subscription(LaserScan,'scan',self.scan_callback,qos_profile)
         self.publisher = self.create_publisher(Twist, 'cmd_vel', 10)
-        print("[BILGI] KESİF MODU AKTİF")
+        print("[Info] EXPLORATION MODE ACTIVATED")
         self.kesif = True
-        threading.Thread(target=self.exp).start() #Kesif fonksiyonunu thread olarak calistirir.
+        threading.Thread(target=self.exp).start() # Runs the exploration function as a thread
         
     def exp(self):
         twist = Twist()
@@ -362,19 +362,19 @@ class navigationControl(Node):
                 else:
                     self.path = pathGlobal
                 if isinstance(self.path, int) and self.path == -1:
-                    print("[BILGI] KESİF TAMAMLANDI")
+                    print("[Info] EXPLORATION COMPLETED")
                     sys.exit()
                 self.c = int((self.path[-1][0] - self.originX)/self.resolution) 
                 self.r = int((self.path[-1][1] - self.originY)/self.resolution) 
                 self.kesif = False
                 self.i = 0
-                print("[BILGI] YENI HEDEF BELİRLENDI")
+                print("[Info] NEW TARGET DETERMINED")
                 t = pathLength(self.path)/speed
-                t = t - 0.2 #x = v * t formülüne göre hesaplanan sureden 0.2 saniye cikarilir. t sure sonra kesif fonksiyonu calistirilir.
-                self.t = threading.Timer(t,self.target_callback) #Hedefe az bir sure kala kesif fonksiyonunu calistirir.
+                t = t - 0.2 # Subtract 0.2 seconds from the time calculated according to the formula x = v * t. The exploration function is then called after t seconds.
+                self.t = threading.Timer(t,self.target_callback) #Runs the exploration function shortly before reaching the target..
                 self.t.start()
             
-            #Rota Takip Blok Baslangic
+            # Route Tracking Block Start
             else:
                 v , w = localControl(self.scan)
                 if v == None:
@@ -383,13 +383,13 @@ class navigationControl(Node):
                     v = 0.0
                     w = 0.0
                     self.kesif = True
-                    print("[BILGI] HEDEFE ULASILDI")
-                    self.t.join() #Thread bitene kadar bekle.
+                    print("[INFO] REACHED THE TARGET")
+                    self.t.join() # Wait until the thread finishes.
                 twist.linear.x = v
                 twist.angular.z = w
                 self.publisher.publish(twist)
                 time.sleep(0.1)
-            #Rota Takip Blok Bitis
+            # Route Tracking Block End
 
     def target_callback(self):
         exploration(self.data,self.width,self.height,self.resolution,self.c,self.r,self.originX,self.originY)
