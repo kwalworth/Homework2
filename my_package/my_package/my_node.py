@@ -15,6 +15,7 @@ with open("/home/kaden/turtlebot3_ws/src/Homework2/my_package/config/params.yaml
 
 print(params["lookahead_distance"])
 print(params["speed"])
+print(params["robot_r"])
 
 lookahead_distance = params["lookahead_distance"]
 speed = params["speed"]
@@ -319,6 +320,7 @@ def localControl(scan):
     w = None
     for i in range(60):
         if scan[i] < robot_r:
+            print("WE ARE TOO CLOSE OH NOOOOOOOO")
             v = 0.2
             w = -math.pi/4 
             break
