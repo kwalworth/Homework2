@@ -1,4 +1,4 @@
-lookahead_distance : 0.24 #one bakma mesafesi
+lookahead_distance : 1 #one bakma mesafesi
 speed : 0.05 #maksimum hiz
 expansion_size : 3 #duvar genisletme katsayisi
 target_error : 0.15 #hedefe olan hata payi
