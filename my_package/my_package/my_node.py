@@ -1,12 +1,12 @@
 #! /usr/bin/env python
 
 
-import rospy
+import rclpy
 import numpy as np
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
 
-pub = rospy.Publisher("cmd_vel", Twist, queue_size=10)
+pub = self.create_publisher(Twist, "cmd_vel", 10)
 velocity_msg = Twist()
 follow_dir = -1
 
@@ -97,27 +97,27 @@ def bug_action():
     linear_x = 0  # Odometry message for linear velocity will be called here.
     angular_z = 0  # Odometry message for angular velocity will be called here.
 
-    rospy.loginfo("follow_direction {f}".format(f=follow_dir))  # This will indicate the direction of wall to follow.
+    print("follow_direction {f}".format(f=follow_dir))  # This will indicate the direction of wall to follow.
 
     if section['front'] > b and section['left'] > b and section['right'] > b:  # Loop 1
         change_state(0)
-        rospy.loginfo("Reset Follow_dir")
+        print("Reset Follow_dir")
     elif follow_dir == -1:  # To set the direction of wall to follow
         if section['left'] < b:
             change_state(1)
             follow_dir = 0
-            rospy.loginfo("following left wall")
+            print("following left wall")
         elif section['right'] < b:
             change_state(3)
             follow_dir = 1
-            rospy.loginfo("following right wall")
+            print("following right wall")
         else:
             change_state(2)
-            rospy.loginfo("follow direction not set")
+            print("follow direction not set")
     elif section['front'] < a and section['left'] < a and section['right'] < a:
-        rospy.loginfo("Too Close")
+        print("Too Close")
     else:
-        rospy.loginfo("Running")
+        print("Running")
 
     if follow_dir == 0:  # Algorithm for left wall follower
         if section['left'] > b and section['front'] > a:
@@ -127,7 +127,7 @@ def bug_action():
         elif section['left'] < b and section['front'] < a:
             change_state(3)
         else:
-            rospy.loginfo("follow left wall is not running")
+            print("follow left wall is not running")
     elif follow_dir == 1:  # Algorithm for right wall follower
         if section['right'] > b and section['front'] > a:
             change_state(5)
@@ -136,7 +136,7 @@ def bug_action():
         elif section['right'] < b and section['front'] < a:
             change_state(1)
         else:
-            rospy.loginfo("follow right wall is not running")
+            print("follow right wall is not running")
 
 
 '''
@@ -219,10 +219,11 @@ Function: check: This function publishes velocity values for the logic based on 
 def check():
     global pub
 
-    rospy.init_node('follow_wall')
-    rospy.Subscriber('/scan', LaserScan, callback_laser)
+    rclpy.init('follow_wall')
+    self.create_subscription(LaserScan, "/scan", self.callback_laser, 10)
 
-    while not rospy.is_shutdown():
+
+    while rclpy.ok():
 
         velocity = Twist()
         if state_ == 0:
@@ -238,11 +239,12 @@ def check():
         elif state_ == 5:
             velocity = move_diag_left()
         else:
-            rospy.logerr('Unknown state!')
+            print('Unknown state!')
 
         pub.publish(velocity)
 
-    rospy.spin()
+    rclpy.spin(self)
+
 
 
 if __name__ == "__main__":
