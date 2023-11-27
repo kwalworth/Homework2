@@ -13,6 +13,9 @@ import sys , threading , time
 with open("/home/kaden/turtlebot3_ws/src/Homework2/my_package/config/params.yaml", 'r') as file:
     params = yaml.load(file, Loader=yaml.FullLoader)
 
+print(params["lookahead_distance"])
+print(params["speed"])
+
 lookahead_distance = params["lookahead_distance"]
 speed = params["speed"]
 expansion_size = params["expansion_size"]
