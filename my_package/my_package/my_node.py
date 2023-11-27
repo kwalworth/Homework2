@@ -321,14 +321,14 @@ def localControl(scan):
     for i in range(60):
         if scan[i] < robot_r:
             print("WE ARE TOO CLOSE OH NOOOOOOOO")
-            v = 0.2
-            w = -math.pi/4 
+            v = params["speed"]
+            w = -math.pi/16
             break
     if v == None:
         for i in range(300,360):
             if scan[i] < robot_r:
-                v = 0.2
-                w = math.pi/4
+                v = params["speed"]
+                w = math.pi/16
                 break
     return v,w
 
@@ -383,6 +383,7 @@ class navigationControl(Node):
             else:
                 v , w = localControl(self.scan)
                 if v == None:
+                    print("DOES V HAVE NO VALUE?")
                     v, w,self.i = pure_pursuit(self.x,self.y,self.yaw,self.path,self.i)
                 if(abs(self.x - self.path[-1][0]) < target_error and abs(self.y - self.path[-1][1]) < target_error):
                     v = 0.0
