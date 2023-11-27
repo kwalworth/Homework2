@@ -322,13 +322,13 @@ def localControl(scan):
         if scan[i] < robot_r:
             print("WE ARE TOO CLOSE OH NOOOOOOOO")
             v = params["speed"]
-            w = -math.pi/16
+            w = -math.pi/4
             break
     if v == None:
         for i in range(300,360):
             if scan[i] < robot_r:
                 v = params["speed"]
-                w = math.pi/16
+                w = math.pi/4
                 break
     return v,w
 
