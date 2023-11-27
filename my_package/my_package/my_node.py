@@ -9,7 +9,7 @@ import scipy.interpolate as si
 import sys , threading , time
 
 
-with open("src/my_package/config/params.yaml", 'r') as file:
+with open("my_package/config/params.yaml", 'r') as file:
     params = yaml.load(file, Loader=yaml.FullLoader)
 
 lookahead_distance = params["lookahead_distance"]
