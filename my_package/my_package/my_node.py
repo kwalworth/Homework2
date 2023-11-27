@@ -1,251 +1,145 @@
-#! /usr/bin/env python
+#!/usr/bin/env python3
 
+# Copyright (c) 2023, Tinker Twins
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
 
-import rclpy
-import numpy as np
-from geometry_msgs.msg import Twist
-from sensor_msgs.msg import LaserScan
+# 1. Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-pub = self.create_publisher(Twist, "cmd_vel", 10)
-velocity_msg = Twist()
-follow_dir = -1
+# ROS2 module imports
+import rclpy # ROS2 client library (rcl) for Python (built on rcl C API)
+from rclpy.node import Node # Node class for Python nodes
+from geometry_msgs.msg import Twist # Twist (linear and angular velocities) message class
+from sensor_msgs.msg import LaserScan # LaserScan (LIDAR range measurements) message class
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy # Ouality of Service (tune communication between nodes)
+from rclpy.qos import qos_profile_sensor_data # Ouality of Service for sensor data, using best effort reliability and small queue depth
+from rclpy.duration import Duration # Time duration class
 
-section = {
-    'front': 0,
-    'left': 0,
-    'right': 0,
-}
+# Python mudule imports
+from math import inf # Common mathematical constant
+import queue # FIFO queue
+import time # Tracking time
 
-state_ = 0
+# PID controller class
+class PIDController:
+    '''
+    Generates control action taking into account instantaneous error (proportional action),
+    accumulated error (integral action) and rate of change of error (derivative action).
+    '''
+    def __init__(self, kP, kI, kD, kS):
+        self.kP       = kP # Proportional gain
+        self.kI       = kI # Integral gain
+        self.kD       = kD # Derivative gain
+        self.kS       = kS # Saturation constant (error history buffer size)
+        self.err_int  = 0 # Error integral
+        self.err_dif  = 0 # Error difference
+        self.err_prev = 0 # Previous error
+        self.err_hist = queue.Queue(self.kS) # Limited buffer of error history
+        self.t_prev   = 0 # Previous time
 
-state_dict_ = {
-    0: 'Find wall',
-    1: 'Turn right',
-    2: 'Follow the wall',
-    3: 'Turn left',
-    4: 'Diagonally right',
-    5: 'Diagonally left',
-}
-'''
-This block contains all the functions designed to execute the navigation process.
+    def control(self, err, t):
+        '''
+        Generate PID controller output.
+        :param err: Instantaneous error in control variable w.r.t. setpoint
+        :param t  : Current timestamp
+        :return u: PID controller output
+        '''
+        dt = t - self.t_prev # Timestep
+        if dt > 0.0:
+            self.err_hist.put(err) # Update error history
+            self.err_int += err # Integrate error
+            if self.err_hist.full(): # Jacketing logic to prevent integral windup
+                self.err_int -= self.err_hist.get() # Rolling FIFO buffer
+            self.err_dif = (err - self.err_prev) # Error difference
+            u = (self.kP * err) + (self.kI * self.err_int * dt) + (self.kD * self.err_dif / dt) # PID control law
+            self.err_prev = err # Update previos error term
+            self.t_prev = t # Update timestamp
+            return u # Control signal
 
-Function: Change_state: This function gets information about the state of robot based on the distance from
-                        from obstacle and changes the state of robot.
+# Node class
+class RobotController(Node):
 
-Argument: state:{Type: Integer} This parameter is used to get the required action set for thr robot.
-                0 - 'Find wall',
-                1 - 'turn right',
-                2 - 'Follow the wall',
-                3 - 'turn left',
-                4 - 'diagonally right',
-                5 - 'diagonally left',
-                
-'''
+    #######################
+    '''Class constructor'''
+    #######################
 
+    def __init__(self):
+        # Information and debugging
+        info = '\nMake the robot follow walls by maintaining equal distance from them.\n'
+        print(info)
+        # ROS2 infrastructure
+        super().__init__('robot_controller') # Create a node with name 'robot_controller'
+        qos_profile = QoSProfile( # Ouality of Service profile
+        reliability=QoSReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_RELIABLE, # Reliable (not best effort) communication
+        history=QoSHistoryPolicy.RMW_QOS_POLICY_HISTORY_KEEP_LAST, # Keep/store only up to last N samples
+        depth=10 # Queue size/depth of 10 (only honored if the “history” policy was set to “keep last”)
+        )
+        self.robot_scan_sub = self.create_subscription(LaserScan, '/scan', self.robot_laserscan_callback, qos_profile_sensor_data) # Subscriber which will subscribe to LaserScan message on the topic '/scan' adhering to 'qos_profile_sensor_data' QoS profile
+        self.robot_scan_sub # Prevent unused variable warning
+        self.robot_ctrl_pub = self.create_publisher(Twist, '/cmd_vel', qos_profile) # Publisher which will publish Twist message to the topic '/cmd_vel' adhering to 'qos_profile' QoS profile
+        timer_period = 0.001 # Node execution time period (seconds)
+        self.timer = self.create_timer(timer_period, self.robot_controller_callback) # Define timer to execute 'robot_controller_callback()' every 'timer_period' seconds
+        self.laserscan = [] # Initialize variable to capture the laserscan
+        self.ctrl_msg = Twist() # Robot control commands (twist)
+        self.start_time = self.get_clock().now() # Record current time in seconds
+        self.pid_lat = PIDController(0.3, 0.01, 1.2, 10) # Lateral PID controller object initialized with kP, kI, kD, kS
+        self.pid_lon = PIDController(0.05, 0.001, 0.05, 10) # Longitudinal PID controller object initialized with kP, kI, kD, kS
 
-def change_state(state):
-    global state_, state_dict_
-    if state is not state_:
-        print('State of Bot - [%s] - %s' % (state, state_dict_[state]))
-        state_ = state
+    ########################
+    '''Callback functions'''
+    ########################
 
+    def robot_laserscan_callback(self, msg):
+        self.laserscan = msg.ranges # Capture most recent laserscan
 
-'''
-Function: callback_laser: This function gets information about LaserScan Data from the sensor and has the conditions set
-                          to change the state of robot based on the distance from the obstacle.
-                          
-                          LaserScan data is transferred in the numpy array to retrieve it more efficiently.
-                          
-                          I have used numpy min() inbuilt function to get LaserScan values between 0-40 degrees for left
-                          side, 70-110 for centre/front side, and 140-180 degrees for right. 
-                          
-                          Once the callback_laser is called in subscriber it will initiate the bug_action block.
-                          
-Argument: msg: {Type: ranges}: This parameter gets sensor_msgs for LaserScan.
-'''
-
-
-def callback_laser(msg):
-    global section
-
-    laser_range = np.array(msg.ranges)
-    section = {
-        'front': min(laser_range[70:110]),
-        'left': min(laser_range[0:40]),
-        'right': min(laser_range[140:180]),
-    }
-
-    bug_action()
-
-
-'''
-Function: bug_action: This function uses a global function to set the direction or wall to follow. When the variable 
-                      follow_dir == -1, the wall follower will reset. When follow_dir == 0, the robot is set to follow 
-                      left wall, and when the follow-dir == 1, robot is set to follow the right wall. 
-                      
-                      Based on the global variable, once a wall is selected the algorithm to follow that particular wall
-                      is implemented. 
-'''
-
-
-def bug_action():
-    global follow_dir
-
-    b = 1  # maximum threshold distance
-    a = 0.5  # minimum threshold distance
-    velocity = Twist()  # Odometry call for velocity
-    linear_x = 0  # Odometry message for linear velocity will be called here.
-    angular_z = 0  # Odometry message for angular velocity will be called here.
-
-    print("follow_direction {f}".format(f=follow_dir))  # This will indicate the direction of wall to follow.
-
-    if section['front'] > b and section['left'] > b and section['right'] > b:  # Loop 1
-        change_state(0)
-        print("Reset Follow_dir")
-    elif follow_dir == -1:  # To set the direction of wall to follow
-        if section['left'] < b:
-            change_state(1)
-            follow_dir = 0
-            print("following left wall")
-        elif section['right'] < b:
-            change_state(3)
-            follow_dir = 1
-            print("following right wall")
+    def robot_controller_callback(self):
+        DELAY = 4.0 # Time delay (s)
+        if self.get_clock().now() - self.start_time > Duration(seconds=DELAY):
+            left_scan_avg = sum(self.laserscan[75:105])/len(self.laserscan[75:105]) # Average of laserscan from left sector
+            right_scan_avg = sum(self.laserscan[255:285])/len(self.laserscan[255:285]) # Average of laserscan from right sector
+            cte = left_scan_avg - right_scan_avg # Compute error (distance from either walls)
+            tstamp = time.time() # Current timestamp (s)
+            if cte == inf:
+                LIN_VEL = self.pid_lon.control(min(3.5, self.laserscan[0]), tstamp) # Linear velocity (m/s) from longitudinal PID controller
+                ANG_VEL = 0.1 # Angular velocity (rad/s)
+            elif cte == -inf:
+                LIN_VEL = self.pid_lon.control(min(3.5, self.laserscan[0]), tstamp) # Linear velocity (m/s) from longitudinal PID controller
+                ANG_VEL = -0.1 # Angular velocity (rad/s)
+            else:
+                LIN_VEL = self.pid_lon.control(min(3.5, self.laserscan[0]), tstamp) # Linear velocity (m/s) from longitudinal PID controller
+                ANG_VEL = min(0.15, self.pid_lat.control(cte, tstamp)) # Angular velocity (rad/s) from lateral PID controller
+            self.ctrl_msg.linear.x = LIN_VEL # Set linear velocity
+            self.ctrl_msg.angular.z = ANG_VEL # Set angular velocity
+            self.robot_ctrl_pub.publish(self.ctrl_msg) # Publish robot controls message
+            print('Relative distance error from walls is {} m'.format(round(cte, 4)))
+            #print('Robot moving with {} m/s and {} rad/s'.format(LIN_VEL, ANG_VEL))
         else:
-            change_state(2)
-            print("follow direction not set")
-    elif section['front'] < a and section['left'] < a and section['right'] < a:
-        print("Too Close")
-    else:
-        print("Running")
+            print('Initializing...')
 
-    if follow_dir == 0:  # Algorithm for left wall follower
-        if section['left'] > b and section['front'] > a:
-            change_state(4)
-        elif section['left'] < b and section['front'] > a:
-            change_state(2)
-        elif section['left'] < b and section['front'] < a:
-            change_state(3)
-        else:
-            print("follow left wall is not running")
-    elif follow_dir == 1:  # Algorithm for right wall follower
-        if section['right'] > b and section['front'] > a:
-            change_state(5)
-        elif section['right'] < b and section['front'] > a:
-            change_state(2)
-        elif section['right'] < b and section['front'] < a:
-            change_state(1)
-        else:
-            print("follow right wall is not running")
-
-
-'''
-Function: find_wall: This function publishes linear and angular velocities for finding wall.
-'''
-
-
-def find_wall():
-    velocity = Twist()
-    velocity.linear.x = 0.3
-    velocity.angular.z = 0
-    return velocity
-
-
-'''
-Function: turn_left:  This function publishes linear and angular velocities for turning left.
-'''
-
-
-def turn_left():
-    velocity = Twist()
-    velocity.linear.x = 0
-    velocity.angular.z = 0.3
-    return velocity
-
-
-'''
-Function: turn_right:  This function publishes linear and angular velocities for turning right.
-'''
-
-
-def turn_right():
-    velocity = Twist()
-    velocity.linear.x = 0
-    velocity.angular.z = -0.3
-    return velocity
-
-
-'''
-Function: move_ahead:  This function publishes linear and angular velocities for moving straight.
-'''
-
-
-def move_ahead():
-    velocity = Twist()
-    velocity.linear.x = 0.3
-    velocity.angular.z = 0
-    return velocity
-
-
-'''
-Function: move_diag_right:  This function publishes linear and angular velocities for moving diagonally right.
-'''
-
-
-def move_diag_right():
-    velocity = Twist()
-    velocity.linear.x = 0.1
-    velocity.angular.z = -0.3
-    return velocity
-
-
-'''
-Function: move_diag_left:  This function publishes linear and angular velocities for moving diagonally left.
-'''
-
-
-def move_diag_left():
-    velocity = Twist()
-    velocity.linear.x = 0.1
-    velocity.angular.z = 0.3
-    return velocity
-
-
-'''
-Function: check: This function publishes velocity values for the logic based on the states.
-'''
-
-
-def check():
-    global pub
-
-    rclpy.init('follow_wall')
-    self.create_subscription(LaserScan, "/scan", self.callback_laser, 10)
-
-
-    while rclpy.ok():
-
-        velocity = Twist()
-        if state_ == 0:
-            velocity = find_wall()
-        elif state_ == 1:
-            velocity = turn_right()
-        elif state_ == 2:
-            velocity = move_ahead()
-        elif state_ == 3:
-            velocity = turn_left()
-        elif state_ == 4:
-            velocity = move_diag_right()
-        elif state_ == 5:
-            velocity = move_diag_left()
-        else:
-            print('Unknown state!')
-
-        pub.publish(velocity)
-
-    rclpy.spin(self)
-
-
+def main(args=None):
+    rclpy.init(args=args) # Start ROS2 communications
+    node = RobotController() # Create node
+    rclpy.spin(node) # Execute node
+    node.destroy_node() # Destroy node explicitly (optional - otherwise it will be done automatically when garbage collector destroys the node object)
+    rclpy.shutdown() # Shutdown ROS2 communications
 
 if __name__ == "__main__":
-    check()
+    main()
