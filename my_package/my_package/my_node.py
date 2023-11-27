@@ -1,6 +1,6 @@
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import QoSProfile
+from rclpy.qos import QoSProfile, QoSPolicyParameters
 from nav_msgs.msg import OccupancyGrid , Odometry
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
