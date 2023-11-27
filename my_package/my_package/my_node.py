@@ -334,7 +334,12 @@ class navigationControl(Node):
 
         # Explicitly set QoS profiles for subscriptions and publishers
         qos = QoSProfile(depth=10)  # Adjust the depth value as needed
-        qos_scan = QoSProfile(depth=10)  # Adjust the depth value as needed
+       qos_scan = QoSProfile(
+            depth=10,
+            reliability=QoSPolicyParameters.reliable,
+            durability=QoSPolicyParameters.transient_local
+        )
+
 
         self.subscription_map = self.create_subscription(
             OccupancyGrid, 'map', self.map_callback, qos)
