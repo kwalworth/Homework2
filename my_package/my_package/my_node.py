@@ -171,7 +171,7 @@ class RandomWalk(Node):
             print(front_lidar_min)
 
             random_number = random.randint(1, 10)
-            print("Random Number: " random_number)
+            print(f"Random Number: {random_number}")
             if(random_number != 1):
                 self.movingForward(front_lidar_min)
             else:
