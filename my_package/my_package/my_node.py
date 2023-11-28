@@ -104,7 +104,7 @@ class RandomWalk(Node):
             self.turtlebot_moving = False
             return
         # Assuming self.scan_cleaned is the original list
-        self.scan_cleaned = [value for value in self.scan_cleaned[LEFT_FRONT_INDEX:RIGHT_FRONT_INDEX] if value != 0.0]
+        self.scan_cleaned = [value for value in self.scan_cleaned[FRONT_LEFT_INDEX:FRONT_RIGHT_INDEX] if value != 0.0]
         if not self.scan_cleaned:
                 # The list is empty, handle this situation accordingly
                 print("Scan cleaned list is empty")
