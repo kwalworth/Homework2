@@ -105,10 +105,14 @@ class RandomWalk(Node):
             return
         # Assuming self.scan_cleaned is the original list
         self.scan_cleaned = [value for value in self.scan_cleaned[LEFT_SIDE_INDEX:LEFT_FRONT_INDEX] if value != 0.0]
+        if not self.scan_cleaned:
+                # The list is empty, handle this situation accordingly
+                print("Scan cleaned list is empty")
+                return
 
-        left_lidar_min = min(self.scan_cleaned[LEFT_SIDE_INDEX:LEFT_FRONT_INDEX])
-        right_lidar_min = min(self.scan_cleaned[RIGHT_FRONT_INDEX:RIGHT_SIDE_INDEX])
-        front_lidar_min = min(self.scan_cleaned[LEFT_FRONT_INDEX:RIGHT_FRONT_INDEX])
+        left_lidar_min = min(self.scan_cleaned)
+        #right_lidar_min = min(self.scan_cleaned[RIGHT_FRONT_INDEX:RIGHT_SIDE_INDEX])
+        #front_lidar_min = min(self.scan_cleaned[LEFT_FRONT_INDEX:RIGHT_FRONT_INDEX])
 
         print(front_lidar_min)
         #self.movingForward(front_lidar_min)
