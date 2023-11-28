@@ -15,7 +15,7 @@ import time
 
 
 LINEAR_VEL = 0.05
-STOP_DISTANCE = 0.2
+STOP_DISTANCE = 1
 LIDAR_ERROR = 0.05
 LIDAR_AVOID_DISTANCE = 0.7
 SAFE_STOP_DISTANCE = STOP_DISTANCE + LIDAR_ERROR
@@ -108,8 +108,8 @@ class RandomWalk(Node):
             front_lidar_min = min(full_array)
             #right_lidar_min = min(self.scan_cleaned[RIGHT_FRONT_INDEX:RIGHT_SIDE_INDEX])
             #front_lidar_min = min(self.scan_cleaned[LEFT_FRONT_INDEX:RIGHT_FRONT_INDEX])
-            print(front_lidar_min)
 
+        print(front_lidar_min)
         self.movingForward(front_lidar_min)
 
 
