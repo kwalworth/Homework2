@@ -78,13 +78,13 @@ class RandomWalk(Node):
 
 
     def movingForward(self, front_lidar_min):    
-        if front_lidar_min < SAFE_STOP_DISTANCE:
+        if front_lidar_min > SAFE_STOP_DISTANCE:
             self.cmd.linear.x = LINEAR_VEL  
             self.cmd.angular.z = 0.0
             self.publisher_.publish(self.cmd)
 
         # Stop the robot when the front distance from the obstacle is smaller than 1.0  
-        if front_lidar_min > SAFE_STOP_DISTANCE:
+        if front_lidar_min < SAFE_STOP_DISTANCE:
             self.stop()
 
     def turnCCW(self):
@@ -103,14 +103,14 @@ class RandomWalk(Node):
         if not full_array:
                 # The list is empty, handle this situation accordingly
                 print("Scan cleaned list is empty")
-                #front_lidar_min = 0
+                front_lidar_min = 3.5
         else:
             front_lidar_min = min(full_array)
             #right_lidar_min = min(self.scan_cleaned[RIGHT_FRONT_INDEX:RIGHT_SIDE_INDEX])
             #front_lidar_min = min(self.scan_cleaned[LEFT_FRONT_INDEX:RIGHT_FRONT_INDEX])
             print(front_lidar_min)
 
-        #self.movingForward(front_lidar_min)
+        self.movingForward(front_lidar_min)
 
 
 
