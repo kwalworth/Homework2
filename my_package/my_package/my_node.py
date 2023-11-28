@@ -10,7 +10,7 @@ from nav_msgs.msg import Odometry
 from rclpy.qos import ReliabilityPolicy, QoSProfile
 import math
 import csv
-
+import time
 
 
 
@@ -70,6 +70,7 @@ class RandomWalk(Node):
         self.cmd.linear.x = 0.0
         self.cmd.angular.z = 0.0
         self.publisher_.publish(self.cmd)
+        self.turnCCW()
 
 
     def movingForward(self, front_lidar_min):    
@@ -77,13 +78,17 @@ class RandomWalk(Node):
             self.cmd.linear.x = LINEAR_VEL  
             self.cmd.angular.z = 0.0
             self.publisher_.publish(self.cmd)
-            print(front_lidar_min)
 
         # Stop the robot when the front distance from the obstacle is smaller than 1.0  
         if front_lidar_min < SAFE_STOP_DISTANCE:
             self.stop()
 
- 
+    def turnCCW(self):
+        start_time = time.time()
+        while time.time() - start_time < 4:
+            self.cmd.linear.x = 0.0
+            self.cmd.angular.z = -(math.PI)/8
+            self.publisher_.publish(self.cmd)
 
     def timer_callback_Kaden2(self):
         if len(self.scan_cleaned) == 0:
@@ -94,6 +99,7 @@ class RandomWalk(Node):
         right_lidar_min = min(self.scan_cleaned[RIGHT_FRONT_INDEX:RIGHT_SIDE_INDEX])
         front_lidar_min = min(self.scan_cleaned[LEFT_FRONT_INDEX:RIGHT_FRONT_INDEX])
 
+        print(front_lidar_min)
         self.movingForward(front_lidar_min)
 
 
