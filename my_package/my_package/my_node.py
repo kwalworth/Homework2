@@ -171,7 +171,8 @@ class RandomWalk(Node):
             print(front_lidar_min)
 
             random_number = random.randint(1, 10)
-            if(random_number > 4):
+            print("Random Number: " random_number)
+            if(random_number != 1):
                 self.movingForward(front_lidar_min)
             else:
                 self.start_orientation = self.pose_saved['orientation']
