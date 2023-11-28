@@ -1,145 +1,116 @@
-#!/usr/bin/env python3
+import rclpy
+# import the ROS2 python libraries
+from rclpy.node import Node
+# import the Twist module from geometry_msgs interface
+from geometry_msgs.msg import Twist
+# import the LaserScan module from sensor_msgs interface
+from sensor_msgs.msg import LaserScan
+from nav_msgs.msg import Odometry
+# import Quality of Service library, to set the correct profile and reliability in order to read sensor data.
+from rclpy.qos import ReliabilityPolicy, QoSProfile
+import math
+import csv
 
-# Copyright (c) 2023, Tinker Twins
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
 
-# 1. Redistributions of source code must retain the above copyright notice, this
-#    list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
-#    and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# ROS2 module imports
-import rclpy # ROS2 client library (rcl) for Python (built on rcl C API)
-from rclpy.node import Node # Node class for Python nodes
-from geometry_msgs.msg import Twist # Twist (linear and angular velocities) message class
-from sensor_msgs.msg import LaserScan # LaserScan (LIDAR range measurements) message class
-from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy # Ouality of Service (tune communication between nodes)
-from rclpy.qos import qos_profile_sensor_data # Ouality of Service for sensor data, using best effort reliability and small queue depth
-from rclpy.duration import Duration # Time duration class
 
-# Python mudule imports
-from math import inf # Common mathematical constant
-import queue # FIFO queue
-import time # Tracking time
+LINEAR_VEL = 0.05
+STOP_DISTANCE = 0.2
+LIDAR_ERROR = 0.05
+LIDAR_AVOID_DISTANCE = 0.7
+SAFE_STOP_DISTANCE = STOP_DISTANCE + LIDAR_ERROR
+RIGHT_SIDE_INDEX = 270
+RIGHT_FRONT_INDEX = 210
+LEFT_FRONT_INDEX=150
+LEFT_SIDE_INDEX=90
 
-# PID controller class
-class PIDController:
-    '''
-    Generates control action taking into account instantaneous error (proportional action),
-    accumulated error (integral action) and rate of change of error (derivative action).
-    '''
-    def __init__(self, kP, kI, kD, kS):
-        self.kP       = kP # Proportional gain
-        self.kI       = kI # Integral gain
-        self.kD       = kD # Derivative gain
-        self.kS       = kS # Saturation constant (error history buffer size)
-        self.err_int  = 0 # Error integral
-        self.err_dif  = 0 # Error difference
-        self.err_prev = 0 # Previous error
-        self.err_hist = queue.Queue(self.kS) # Limited buffer of error history
-        self.t_prev   = 0 # Previous time
 
-    def control(self, err, t):
-        '''
-        Generate PID controller output.
-        :param err: Instantaneous error in control variable w.r.t. setpoint
-        :param t  : Current timestamp
-        :return u: PID controller output
-        '''
-        dt = t - self.t_prev # Timestep
-        if dt > 0.0:
-            self.err_hist.put(err) # Update error history
-            self.err_int += err # Integrate error
-            if self.err_hist.full(): # Jacketing logic to prevent integral windup
-                self.err_int -= self.err_hist.get() # Rolling FIFO buffer
-            self.err_dif = (err - self.err_prev) # Error difference
-            u = (self.kP * err) + (self.kI * self.err_int * dt) + (self.kD * self.err_dif / dt) # PID control law
-            self.err_prev = err # Update previos error term
-            self.t_prev = t # Update timestamp
-            return u # Control signal
 
-# Node class
-class RobotController(Node):
-
-    #######################
-    '''Class constructor'''
-    #######################
+class RandomWalk(Node):
 
     def __init__(self):
-        # Information and debugging
-        info = '\nMake the robot follow walls by maintaining equal distance from them.\n'
-        print(info)
-        # ROS2 infrastructure
-        super().__init__('robot_controller') # Create a node with name 'robot_controller'
-        qos_profile = QoSProfile( # Ouality of Service profile
-        reliability=QoSReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_RELIABLE, # Reliable (not best effort) communication
-        history=QoSHistoryPolicy.RMW_QOS_POLICY_HISTORY_KEEP_LAST, # Keep/store only up to last N samples
-        depth=10 # Queue size/depth of 10 (only honored if the “history” policy was set to “keep last”)
-        )
-        self.robot_scan_sub = self.create_subscription(LaserScan, '/scan', self.robot_laserscan_callback, qos_profile_sensor_data) # Subscriber which will subscribe to LaserScan message on the topic '/scan' adhering to 'qos_profile_sensor_data' QoS profile
-        self.robot_scan_sub # Prevent unused variable warning
-        self.robot_ctrl_pub = self.create_publisher(Twist, '/cmd_vel', qos_profile) # Publisher which will publish Twist message to the topic '/cmd_vel' adhering to 'qos_profile' QoS profile
-        timer_period = 0.001 # Node execution time period (seconds)
-        self.timer = self.create_timer(timer_period, self.robot_controller_callback) # Define timer to execute 'robot_controller_callback()' every 'timer_period' seconds
-        self.laserscan = [] # Initialize variable to capture the laserscan
-        self.ctrl_msg = Twist() # Robot control commands (twist)
-        self.start_time = self.get_clock().now() # Record current time in seconds
-        self.pid_lat = PIDController(0.3, 0.01, 1.2, 10) # Lateral PID controller object initialized with kP, kI, kD, kS
-        self.pid_lon = PIDController(0.05, 0.001, 0.05, 10) # Longitudinal PID controller object initialized with kP, kI, kD, kS
+        super().__init__('random_walk_node')
+        self.scan_cleaned = []
+        self.stall = False
+        self.turtlebot_moving = False
+        self.publisher_ = self.create_publisher(Twist, 'cmd_vel', 10)
+        self.subscriber1 = self.create_subscription(
+            LaserScan,
+            '/scan',
+            self.listener_callback1,
+            QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT))
+        self.laser_forward = 0
+        timer_period = 0.5
+        self.pose_saved=''
+        self.cmd = Twist()
+        self.timer = self.create_timer(timer_period, self.timer_callback_Kaden2)
+        #Check right above this, this is where you call your code
+        # Get the current working directory, I needed to know where "path.csv" was
+        #current_directory = os.getcwd()
+        #self.get_logger().info(f'Current working directory: {current_directory}')
 
-    ########################
-    '''Callback functions'''
-    ########################
 
-    def robot_laserscan_callback(self, msg):
-        self.laserscan = msg.ranges # Capture most recent laserscan
-
-    def robot_controller_callback(self):
-        DELAY = 4.0 # Time delay (s)
-        if self.get_clock().now() - self.start_time > Duration(seconds=DELAY):
-            left_scan_avg = sum(self.laserscan[75:105])/len(self.laserscan[75:105]) # Average of laserscan from left sector
-            right_scan_avg = sum(self.laserscan[255:285])/len(self.laserscan[255:285]) # Average of laserscan from right sector
-            cte = left_scan_avg - right_scan_avg # Compute error (distance from either walls)
-            tstamp = time.time() # Current timestamp (s)
-            if cte == inf:
-                LIN_VEL = self.pid_lon.control(min(3.5, self.laserscan[0]), tstamp) # Linear velocity (m/s) from longitudinal PID controller
-                ANG_VEL = 0.1 # Angular velocity (rad/s)
-            elif cte == -inf:
-                LIN_VEL = self.pid_lon.control(min(3.5, self.laserscan[0]), tstamp) # Linear velocity (m/s) from longitudinal PID controller
-                ANG_VEL = -0.1 # Angular velocity (rad/s)
+    def listener_callback1(self, msg1):
+        #self.get_logger().info('scan: "%s"' % msg1.ranges)
+        scan = msg1.ranges
+        self.scan_cleaned = []
+    
+        #self.get_logger().info('scan: "%s"' % scan)
+        # Assume 360 range measurements
+        for reading in scan:
+            if reading == float('Inf'):
+                self.scan_cleaned.append(3.5)
+            elif math.isnan(reading):
+                self.scan_cleaned.append(0.0)
             else:
-                LIN_VEL = self.pid_lon.control(min(3.5, self.laserscan[0]), tstamp) # Linear velocity (m/s) from longitudinal PID controller
-                ANG_VEL = min(0.15, self.pid_lat.control(cte, tstamp)) # Angular velocity (rad/s) from lateral PID controller
-            self.ctrl_msg.linear.x = LIN_VEL # Set linear velocity
-            self.ctrl_msg.angular.z = ANG_VEL # Set angular velocity
-            self.robot_ctrl_pub.publish(self.ctrl_msg) # Publish robot controls message
-            print('Relative distance error from walls is {} m'.format(round(cte, 4)))
-            #print('Robot moving with {} m/s and {} rad/s'.format(LIN_VEL, ANG_VEL))
-        else:
-            print('Initializing...')
+                self.scan_cleaned.append(reading)
+
+    def stop(self):  
+        self.cmd.linear.x = 0.0
+        self.cmd.angular.z = 0.0
+        self.publisher_.publish(self.cmd)
+
+
+    def movingForward(self, front_lidar_min):    
+        while front_lidar_min > SAFE_STOP_DISTANCE:
+            self.cmd.linear.x = LINEAR_VEL  
+            self.cmd.angular.z = 0.0
+            self.publisher_.publish(self.cmd)
+
+        # Stop the robot when the front distance from the obstacle is smaller than 1.0  
+        if front_lidar_min < SAFE_STOP_DISTANCE:
+            self.stop()
+
+ 
+
+    def timer_callback_Kaden2(self):
+        if len(self.scan_cleaned) == 0:
+            self.turtlebot_moving = False
+            return
+        
+        left_lidar_min = min(self.scan_cleaned[LEFT_SIDE_INDEX:LEFT_FRONT_INDEX])
+        right_lidar_min = min(self.scan_cleaned[RIGHT_FRONT_INDEX:RIGHT_SIDE_INDEX])
+        front_lidar_min = min(self.scan_cleaned[LEFT_FRONT_INDEX:RIGHT_FRONT_INDEX])
+
+        self.movingForward(front_lidar_min)
+
+
+
+
 
 def main(args=None):
-    rclpy.init(args=args) # Start ROS2 communications
-    node = RobotController() # Create node
-    rclpy.spin(node) # Execute node
-    node.destroy_node() # Destroy node explicitly (optional - otherwise it will be done automatically when garbage collector destroys the node object)
-    rclpy.shutdown() # Shutdown ROS2 communications
+    # initialize the ROS communication
+    rclpy.init(args=args)
+    # declare the node constructor
+    random_walk_node = RandomWalk()
+    # pause the program execution, waits for a request to kill the node (ctrl+c)
+    rclpy.spin(random_walk_node)
+    # Explicity destroy the node
+    random_walk_node.destroy_node()
+    # shutdown the ROS communication
+    rclpy.shutdown()
 
-if __name__ == "__main__":
+
+
+if __name__ == '__main__':
     main()
