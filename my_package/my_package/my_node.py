@@ -99,7 +99,7 @@ class RandomWalk(Node):
         # Assuming self.scan_cleaned is the original list
         left_array = [value for value in self.scan_cleaned[FRONT_FIRST_LARGE:FRONT_SECOND_LARGE] if value != 0.0]
         right_array = [value for value in self.scan_cleaned[FRONT_FIRST_SMALL:FRONT_SECOND_SMALL] if value != 0.0]
-        full_arry = left_array + right_array
+        full_array = left_array + right_array
         if not full_array:
                 # The list is empty, handle this situation accordingly
                 print("Scan cleaned list is empty")
