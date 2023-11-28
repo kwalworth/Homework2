@@ -77,13 +77,13 @@ class RandomWalk(Node):
 
 
     def movingForward(self, front_lidar_min):    
-        if front_lidar_min > SAFE_STOP_DISTANCE:
+        if front_lidar_min < SAFE_STOP_DISTANCE:
             self.cmd.linear.x = LINEAR_VEL  
             self.cmd.angular.z = 0.0
             self.publisher_.publish(self.cmd)
 
         # Stop the robot when the front distance from the obstacle is smaller than 1.0  
-        if front_lidar_min < SAFE_STOP_DISTANCE:
+        if front_lidar_min > SAFE_STOP_DISTANCE:
             self.stop()
         time.sleep(1)
 
@@ -91,12 +91,8 @@ class RandomWalk(Node):
         start_time = time.time()
         while time.time() - start_time < 2:
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = -(math.pi)/8
+            self.cmd.angular.z = (math.pi)/8
             self.publisher_.publish(self.cmd)
-        time.sleep(1)
-        self.cmd.linear.x = LINEAR_VEL
-        self.cmd.angular.z = 0.0
-        self.publisher_.publish(self.cmd)
         time.sleep(1)
 
     def timer_callback_Kaden2(self):
@@ -108,11 +104,11 @@ class RandomWalk(Node):
         if not self.scan_cleaned:
                 # The list is empty, handle this situation accordingly
                 print("Scan cleaned list is empty")
-                return
-
-        front_lidar_min = min(self.scan_cleaned)
-        #right_lidar_min = min(self.scan_cleaned[RIGHT_FRONT_INDEX:RIGHT_SIDE_INDEX])
-        #front_lidar_min = min(self.scan_cleaned[LEFT_FRONT_INDEX:RIGHT_FRONT_INDEX])
+                front_lidar_min = 0
+        else:
+            front_lidar_min = min(self.scan_cleaned)
+            #right_lidar_min = min(self.scan_cleaned[RIGHT_FRONT_INDEX:RIGHT_SIDE_INDEX])
+            #front_lidar_min = min(self.scan_cleaned[LEFT_FRONT_INDEX:RIGHT_FRONT_INDEX])
 
         print(front_lidar_min)
         #self.movingForward(front_lidar_min)
