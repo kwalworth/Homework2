@@ -23,8 +23,10 @@ RIGHT_SIDE_INDEX = 270
 RIGHT_FRONT_INDEX = 210
 LEFT_FRONT_INDEX=150
 LEFT_SIDE_INDEX=90
-FRONT_LEFT_INDEX=350
-FRONT_RIGHT_INDEX=360
+FRONT_FIRST_LARGE=340
+FRONT_SECOND_LARGE=360
+FRONT_FIRST_SMALL=0
+FRONT_SECOND_SMALL=20
 
 
 
@@ -95,13 +97,15 @@ class RandomWalk(Node):
             self.turtlebot_moving = False
             return
         # Assuming self.scan_cleaned is the original list
-        self.scan_cleaned = [value for value in self.scan_cleaned[FRONT_LEFT_INDEX:FRONT_RIGHT_INDEX] if value != 0.0]
-        if not self.scan_cleaned:
+        left_array = [value for value in self.scan_cleaned[FRONT_FIRST_LARGE:FRONT_SECOND_LARGE] if value != 0.0]
+        right_array = [value for value in self.scan_cleaned[FRONT_FIRST_SMALL:FRONT_SECOND_SMALL] if value != 0.0]
+        full_arry = left_array + right_array
+        if not full_array:
                 # The list is empty, handle this situation accordingly
                 print("Scan cleaned list is empty")
                 #front_lidar_min = 0
         else:
-            front_lidar_min = min(self.scan_cleaned)
+            front_lidar_min = min(full_array)
             #right_lidar_min = min(self.scan_cleaned[RIGHT_FRONT_INDEX:RIGHT_SIDE_INDEX])
             #front_lidar_min = min(self.scan_cleaned[LEFT_FRONT_INDEX:RIGHT_FRONT_INDEX])
             print(front_lidar_min)
