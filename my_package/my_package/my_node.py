@@ -174,6 +174,7 @@ class RandomWalk(Node):
             if(random_number > 4):
                 self.movingForward(front_lidar_min)
             else:
+                self.start_orientation = self.pose_saved['orientation']
                 self.turn360()
             
 
