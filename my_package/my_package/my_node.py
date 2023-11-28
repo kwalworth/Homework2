@@ -87,7 +87,7 @@ class RandomWalk(Node):
         start_time = time.time()
         while time.time() - start_time < 4:
             self.cmd.linear.x = 0.0
-            self.cmd.angular.z = -(math.PI)/8
+            self.cmd.angular.z = -(math.pi)/8
             self.publisher_.publish(self.cmd)
 
     def timer_callback_Kaden2(self):
