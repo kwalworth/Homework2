@@ -66,16 +66,18 @@ class RandomWalk(Node):
                 self.scan_cleaned.append(reading)
 
     def stop(self):  
+        print("I SHOULD BE STOPPING!!!!")
         self.cmd.linear.x = 0.0
         self.cmd.angular.z = 0.0
         self.publisher_.publish(self.cmd)
 
 
     def movingForward(self, front_lidar_min):    
-        while front_lidar_min > SAFE_STOP_DISTANCE:
+        if front_lidar_min > SAFE_STOP_DISTANCE:
             self.cmd.linear.x = LINEAR_VEL  
             self.cmd.angular.z = 0.0
             self.publisher_.publish(self.cmd)
+            print(front_lidar_min)
 
         # Stop the robot when the front distance from the obstacle is smaller than 1.0  
         if front_lidar_min < SAFE_STOP_DISTANCE:
