@@ -107,7 +107,7 @@ class RandomWalk(Node):
         front_lidar_min = min(self.scan_cleaned[LEFT_FRONT_INDEX:RIGHT_FRONT_INDEX])
 
         print(front_lidar_min)
-        self.movingForward(front_lidar_min)
+        #self.movingForward(front_lidar_min)
 
 
 
