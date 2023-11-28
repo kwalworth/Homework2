@@ -103,10 +103,12 @@ class RandomWalk(Node):
         if len(self.scan_cleaned) == 0:
             self.turtlebot_moving = False
             return
-        
-        left_lidar_min = max(self.scan_cleaned[LEFT_SIDE_INDEX:LEFT_FRONT_INDEX])
-        right_lidar_min = max(self.scan_cleaned[RIGHT_FRONT_INDEX:RIGHT_SIDE_INDEX])
-        front_lidar_min = max(self.scan_cleaned[LEFT_FRONT_INDEX:RIGHT_FRONT_INDEX])
+        # Assuming self.scan_cleaned is the original list
+        self.scan_cleaned = [value for value in self.scan_cleaned[LEFT_SIDE_INDEX:LEFT_FRONT_INDEX] if value != 0.0]
+
+        left_lidar_min = min(self.scan_cleaned[LEFT_SIDE_INDEX:LEFT_FRONT_INDEX])
+        right_lidar_min = min(self.scan_cleaned[RIGHT_FRONT_INDEX:RIGHT_SIDE_INDEX])
+        front_lidar_min = min(self.scan_cleaned[LEFT_FRONT_INDEX:RIGHT_FRONT_INDEX])
 
         print(front_lidar_min)
         #self.movingForward(front_lidar_min)
