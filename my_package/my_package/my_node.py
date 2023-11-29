@@ -150,6 +150,8 @@ class RandomWalk(Node):
             self.publisher_.publish(self.cmd) 
 
     def timer_callback_Kaden2(self):
+        global DEGREES
+        global DEGREES_OBJECTIVE
         global COUNT
 
         if len(self.scan_cleaned) == 0:
@@ -180,6 +182,8 @@ class RandomWalk(Node):
             if(COUNT != 45):
                 self.movingForward(front_lidar_min)
                 COUNT = COUNT + 1
+                DEGREES = 0
+                DEGREES_OBJECTIVE = 0
             else:
                 self.start_orientation = self.pose_saved['orientation']
                 self.turn360()
