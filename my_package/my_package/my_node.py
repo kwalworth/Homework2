@@ -177,7 +177,7 @@ class RandomWalk(Node):
             #print(f"Random Number: {random_number}")
             #if(random_number != 1):
             print(f"COUNT: {COUNT}")
-            if(COUNT != 500):
+            if(COUNT != 75):
                 self.movingForward(front_lidar_min)
                 COUNT = COUNT + 1
             else:
