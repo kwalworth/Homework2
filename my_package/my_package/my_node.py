@@ -15,7 +15,7 @@ import random
 
 
 
-LINEAR_VEL = 0.12
+LINEAR_VEL = 0.15
 STOP_DISTANCE = 1
 LIDAR_ERROR = 0.1
 LIDAR_AVOID_DISTANCE = 0.7
@@ -177,7 +177,7 @@ class RandomWalk(Node):
             #print(f"Random Number: {random_number}")
             #if(random_number != 1):
             print(f"COUNT: {COUNT}")
-            if(COUNT != 73):
+            if(COUNT != 45):
                 self.movingForward(front_lidar_min)
                 COUNT = COUNT + 1
             else:
