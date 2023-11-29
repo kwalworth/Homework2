@@ -32,6 +32,7 @@ FRONT_SECOND_SMALL=20
 ANGULAR_VELOCITY = 0.01 
 DEGREES = 0 
 DEGREES_OBJECTIVE = 0 
+COUNT = 0
 
 
 
@@ -149,6 +150,8 @@ class RandomWalk(Node):
             self.publisher_.publish(self.cmd) 
 
     def timer_callback_Kaden2(self):
+        global COUNT
+
         if len(self.scan_cleaned) == 0:
             self.turtlebot_moving = False
             return
@@ -170,13 +173,17 @@ class RandomWalk(Node):
 
             print(front_lidar_min)
 
-            random_number = random.randint(1, 25)
-            print(f"Random Number: {random_number}")
-            if(random_number != 1):
+            #random_number = random.randint(1, 25)
+            #print(f"Random Number: {random_number}")
+            #if(random_number != 1):
+            print(f"COUNT: {COUNT}")
+            if(COUNT != 500):
                 self.movingForward(front_lidar_min)
+                COUNT = COUNT + 1
             else:
                 self.start_orientation = self.pose_saved['orientation']
                 self.turn360()
+                COUNT = 0
             
 
 
